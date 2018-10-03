@@ -1,0 +1,78 @@
+Main
+1 Oloro, Ageless Ascetic # !Commander
+1 Absorb
+1 Aetherflux Reservoir
+1 Ajani's Pridemate
+1 Arcane Sanctum
+1 Azorius Guildgate
+1 Azorius Signet
+1 Beacon of Immortality
+1 Blind Obedience
+1 Bloodgift Demon
+1 Boon Reflection
+1 Caves of Koilos
+1 Celestial Force
+1 Chalice of Life
+1 Chromatic Lantern
+1 City of Brass
+1 Command Tower
+1 Darksteel Ingot
+1 Darksteel Plate
+1 Debt to the Deathless
+1 Demonic Collusion
+1 Dimir Guildgate
+1 Dimir Signet
+1 Divinity of Pride
+1 Dreamstone Hedron
+1 Drogskol Reaver
+1 Esper Panorama
+1 Everflowing Chalice
+1 Exquisite Blood
+1 Exsanguinate
+1 Ghostly Prison
+1 Grand Coliseum
+1 Gray Merchant of Asphodel
+1 Greed
+4 Island
+1 Ivory Tower
+1 Jwar Isle Refuge
+1 Mind Over Matter
+1 Necropotence
+1 Obzedat, Ghost Council
+1 Orzhov Guildgate
+1 Orzhov Keyrune
+1 Orzhov Signet
+1 Paradox Haze
+1 Phyrexian Arena
+1 Phyrexian Processor
+12 Plains
+1 Pontiff of Blight
+1 Pristine Talisman
+1 Propaganda
+1 Psychosis Crawler
+1 Reliquary Tower
+1 Return to Dust
+1 Rhox Faithmender
+1 Sanguine Bond
+1 Sejiri Refuge
+1 Serra Ascendant
+1 Skirge Familiar
+1 Sol Ring
+1 Solemn Simulacrum
+1 Solitary Confinement
+1 Souls of the Faultless
+1 Storm Herd
+1 Subversion
+1 Sun Droplet
+10 Swamp
+1 Swords to Plowshares
+1 Terramorphic Expanse
+1 Thought Reflection
+1 Thran Dynamo
+1 Thran Turbine
+1 Toxic Deluge
+1 Venser's Journal
+1 Vizkopa Guildmage
+1 Wall of Reverence
+1 Well of Lost Dreams
+1 Words of Worship

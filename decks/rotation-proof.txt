@@ -1,0 +1,31 @@
+Main
+4 Ajani's Pridemate
+2 Ajani, Adversary of Tyrants
+4 Benalish Marshal
+2 Ixalan's Binding
+3 Leonin Vanguard
+3 Lyra Dawnbringer
+1 Make a Stand
+17 Plains
+4 Resplendent Angel
+4 Revitalize
+1 Ritual of Rejuvenation
+2 Seal Away
+3 Shalai, Voice of Plenty
+3 Sheltering Light
+4 Sunpetal Grove
+1 Teshar, Ancestor's Apostle
+2 Urza's Ruinous Blast
+
+Sideboard
+SB: 2 Ashes of the Abhorrent
+SB: 1 Cleansing Nova
+SB: 2 Fountain of Renewal
+SB: 1 Ixalan's Binding
+SB: 2 Legion's Landing
+SB: 1 Leonin Vanguard
+SB: 1 Ritual of Rejuvenation
+SB: 1 Seal Away
+SB: 2 Shield Mare
+SB: 1 Teshar, Ancestor's Apostle
+SB: 1 Urza's Ruinous Blast
