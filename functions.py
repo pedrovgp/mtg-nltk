@@ -5,9 +5,34 @@ import networkx as nx
 import json
 from networkx.readwrite import json_graph
 
-def process_ids(obj_tuple, method='append'):
-    list_with_many_ids, cards_graphs_as_json_to_table, out_nodes, out_edges, in_nodes, in_edges, ent_out_nodes, ent_in_nodes, engine = obj_tuple
+from sqlalchemy import create_engine
+
+write_every = 200 # cards
+
+def build_graphs_of_cards(obj_tuple, method='append'):
+    list_with_many_ids, = obj_tuple
     ids_to_process = list_with_many_ids
+    print(ids_to_process)
+    
+    # Params
+    engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
+    engine.connect()
+    
+    out_nodes_table_name = 'outnodes'
+    out_edges_table_name = 'outedges'
+    in_nodes_table_name = 'innodes'
+    in_edges_table_name = 'inedges'
+    
+    cards_graphs_as_json_to_table = 'cards_graphs_as_json_temp'
+    
+    # Load
+    #out_nodes = pd.read_sql_table(out_nodes_table_name, engine)
+    #out_edges = pd.read_sql_table(out_edges_table_name, engine)
+    #in_nodes = pd.read_sql_table(in_nodes_table_name, engine)
+    #in_edges = pd.read_sql_table(in_edges_table_name, engine)
+    
+    #ent_out_nodes  = out_nodes[out_nodes['type']=='entity']
+    #ent_in_nodes = in_nodes[in_nodes['type']=='entity']
     
     result = {}
 #     print_every = 10
@@ -20,15 +45,27 @@ def process_ids(obj_tuple, method='append'):
         result[card_id] = {}
 
         # Card nodes
-        #card_0_nodes = out_nodes[(out_nodes['card_id']==card_id)
-        #                        |(out_nodes['type']=='entity')]
-        card_0_nodes = out_nodes[(out_nodes['card_id']==card_id)]
-        card_0_edges = out_edges[(out_edges['source'].isin(card_0_nodes['node_id']))
-                                |(out_edges['target'].isin(card_0_nodes['node_id']))]
+        card_0_nodes_qr = '''
+        SELECT * FROM {0} WHERE card_id = '{1}'
+        '''.format('public.'+out_nodes_table_name, card_id)
+        card_0_nodes = pd.read_sql_query(card_0_nodes_qr, engine)
+
+        # Card edges
+        card_0_edges_qr = '''
+        SELECT * FROM {0}
+        WHERE source IN {1}
+        OR target IN {1}
+        '''.format('public.'+out_edges_table_name, '('+','.join(["'"+x+"'" for x in card_0_nodes['node_id']])+')')
+        card_0_edges = pd.read_sql_query(card_0_edges_qr, engine)
 
         # Relevant entity nodes
-        ent_0_nodes = ent_out_nodes[ent_out_nodes['node_id'].isin(card_0_edges['source'])
-                                     |ent_out_nodes['node_id'].isin(card_0_edges['target'])]
+        nodes_set = set(pd.np.union1d(card_0_edges['source'].values,card_0_edges['target'].values))
+        ent_0_nodes_qr = '''
+        SELECT * FROM {0}
+        WHERE node_id IN {1}
+        AND type='entity'
+        '''.format('public.'+out_nodes_table_name, '('+','.join(["'"+x+"'" for x in nodes_set])+')')
+        ent_0_nodes = pd.read_sql_query(ent_0_nodes_qr, engine)
 
         card_0_nodes = pd.concat([card_0_nodes, ent_0_nodes], sort=False)
 
@@ -62,14 +99,28 @@ def process_ids(obj_tuple, method='append'):
 
         result[card_id]['outgoing'] = json.dumps(json_graph.node_link_data(G))
 
-        # Card nodes
-        card_0_in_nodes = in_nodes[(in_nodes['card_id']==card_id)]
-        card_0_in_edges = in_edges[(in_edges['source'].isin(card_0_in_nodes['node_id']))
-                                |(in_edges['target'].isin(card_0_in_nodes['node_id']))]
+        # Card in nodes
+        card_0_in_nodes_qr = '''
+        SELECT * FROM {0} WHERE card_id = '{1}'
+        '''.format('public.'+in_nodes_table_name, card_id)
+        card_0_in_nodes = pd.read_sql_query(card_0_in_nodes_qr, engine)
+
+        # Card in edges
+        card_0_in_edges_qr = '''
+        SELECT * FROM {0}
+        WHERE source IN {1}
+        OR target IN {1}
+        '''.format('public.'+in_edges_table_name, '('+','.join(["'"+x+"'" for x in card_0_in_nodes['node_id']])+')')
+        card_0_in_edges = pd.read_sql_query(card_0_in_edges_qr, engine)
 
         # Relevant entity nodes
-        ent_0_nodes = ent_in_nodes[ent_in_nodes['node_id'].isin(card_0_in_edges['source'])
-                                     |ent_in_nodes['node_id'].isin(card_0_in_edges['target'])]
+        nodes_set = set(pd.np.union1d(card_0_in_edges['source'].values,card_0_in_edges['target'].values))
+        ent_0_nodes_qr = '''
+        SELECT * FROM {0}
+        WHERE node_id IN {1}
+        AND type='entity'
+        '''.format('public.'+in_nodes_table_name, '('+','.join(["'"+x+"'" for x in nodes_set])+')')
+        ent_0_nodes = pd.read_sql_query(ent_0_nodes_qr, engine)
 
         card_0_in_nodes = pd.concat([card_0_in_nodes, ent_0_nodes], sort=False)
 
