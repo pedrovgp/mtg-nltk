@@ -355,7 +355,7 @@ def splitDataFrameList(df,target_column,separator=None):
                 row_accumulator.append(new_row)
         else:
             new_row = row.to_dict()
-            new_row[target_column] = pd.np.nan
+            new_row[target_column] = np.nan
             row_accumulator.append(new_row)
     new_rows = []
     df.apply(splitListToRows, axis=1, args=(new_rows,target_column,separator))
@@ -381,12 +381,12 @@ def split_abilities_and_keep_the_rest(df_row):
 
 def get_aspas(text):
     if pd.isnull(text):
-        return pd.np.nan
+        return np.nan
     
     reg = re.findall(r'\"(.+?)\"', text)
     
     if not reg:
-        return pd.np.nan
+        return np.nan
     
     res = reg[0]
     
@@ -602,7 +602,7 @@ named_card_regex = r' named ' + named_card_pattern + '((?: or )' + named_card_pa
 # a = cards_df['text_preworked'].apply(
 #     lambda x: re.findall(named_card_regex, x)
 #     if re.findall(named_card_regex, x)
-#     else pd.np.nan
+#     else np.nan
 # ).dropna()
 
 # + deletable=false editable=false hidden=true run_control={"frozen": true}
