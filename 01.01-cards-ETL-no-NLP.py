@@ -41,24 +41,46 @@ import pandas as pd
 import numpy as np
 import re
 from collections import defaultdict
-#from tqdm import tqdm
-#tqdm.pandas()
+# from tqdm import tqdm
+# tqdm.pandas()
+
+import logging
+logPathFileName = './logs/' + '01.01.log'
+
+# create logger'
+logger = logging.getLogger('01.01')
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+# add the handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
 
 from tqdm.notebook import tqdm_notebook
+
 tqdm_notebook.pandas()
+
 
 # + hideCode=false
 sets = json.load(open('./AllPrintings.json', 'rb'))
 # sets = json.load(open('./AllSets.json', 'rb'))
 # -
 
-cards_all=[]
+cards_all = []
 for k, sett in sets.items():
-    if (k in ['UGL', 'UST', 'UNH']) or (len(k)>3): # Ignore Unglued, Unstable and promotional things
+    if (k in ['UGL', 'UST', 'UNH']) or (len(k) > 3):  # Ignore Unglued, Unstable and promotional things
         continue
     for card in sett['cards']:
         card['set'] = k
-    cards_all.extend(sett['cards'])    
+    cards_all.extend(sett['cards'])
 
 # # Params
 
@@ -68,6 +90,7 @@ mains_col_names = ['name', 'manaCost', 'text_preworked', 'type', 'power', 'tough
                    'types', 'supertypes', 'subtypes']
 
 from sqlalchemy import create_engine
+
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
 engine.connect()
 
@@ -78,7 +101,9 @@ export_table_name = 'cards_text_parts'
 # + code_folding=[0]
 # Split dataframelist
 import collections
-def splitDataFrameList(df,target_column,separator=None):
+
+
+def splitDataFrameList(df, target_column, separator=None):
     '''
     https://gist.github.com/jlln/338b4b0b55bd6984f883
     df = dataframe to split,
@@ -87,8 +112,9 @@ def splitDataFrameList(df,target_column,separator=None):
     returns: a dataframe with each entry for the target column separated, with each element moved into a new row. 
     The values in the other columns are duplicated across the newly divided rows.
     '''
-    def splitListToRows(row,row_accumulator,target_column,separator):
-        split_row = row[target_column]#.split(separator)
+
+    def splitListToRows(row, row_accumulator, target_column, separator):
+        split_row = row[target_column]  # .split(separator)
         if isinstance(split_row, collections.Iterable):
             for s in split_row:
                 new_row = row.to_dict()
@@ -98,8 +124,9 @@ def splitDataFrameList(df,target_column,separator=None):
             new_row = row.to_dict()
             new_row[target_column] = pd.np.nan
             row_accumulator.append(new_row)
+
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(new_rows,target_column,separator))
+    df.apply(splitListToRows, axis=1, args=(new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
@@ -113,10 +140,10 @@ def splitDataFrameList(df,target_column,separator=None):
 cards = cards_all
 cards_df = pd.DataFrame.from_dict(cards)
 cards_df = cards_df.drop_duplicates(subset=['name'])
-cards_df = cards_df.drop(columns=['foreignData', 'legalities', 'prices', 'purchaseUrls', 
+cards_df = cards_df.drop(columns=['foreignData', 'legalities', 'prices', 'purchaseUrls',
                                   'rulings', 'leadershipSkills'], errors='ignore')
-#cards_df = cards_df.sample(200)
-#cards_df = cards_df[cards_df['name'].isin(all_cards_names_in_decks)]
+# cards_df = cards_df.sample(200)
+# cards_df = cards_df[cards_df['name'].isin(all_cards_names_in_decks)]
 
 # ### Add and transform features
 
@@ -133,7 +160,8 @@ all_mana_pattern = r'{.*?}'
 generic_mana_pattern = r'{(?:X|\d)}'
 cards_df['id'] = cards_df['uuid']
 assert (not cards_df[['id']].isnull().values.any())
-cards_df['manaCost_tuples_generic'] = cards_df['manaCost'].apply(lambda x: list(re.findall(generic_mana_pattern, str(x))))
+cards_df['manaCost_tuples_generic'] = cards_df['manaCost'].apply(
+    lambda x: list(re.findall(generic_mana_pattern, str(x))))
 cards_df['manaCost_tuples'] = cards_df['manaCost'].apply(lambda x: list(re.findall(all_mana_pattern, str(x))))
 cards_df['manaCost_tuples_len'] = cards_df['manaCost_tuples'].apply(lambda x: len(x))
 cards_df['manaCost_tuples_generic_len'] = cards_df['manaCost_tuples_generic'].apply(lambda x: len(x))
@@ -144,38 +172,45 @@ cards_df['manaCost_generic'] = cards_df['cmc'] - cards_df['manaCost_coloured']
 # +
 # Replace name by SELF and remove anything between parethesis
 pattern_parenthesis = r' ?\(.*?\)'
+
+
 def prework_text(card):
     t = str(card['text']).replace(card['name'], 'SELF')
     t = re.sub(pattern_parenthesis, '', t)
     return t
-    
+
+
 cards_df['text_preworked'] = cards_df.apply(prework_text, axis=1)
-#cards_df['text_preworked']
+
+
+# cards_df['text_preworked']
 
 # +
 # Set land text, which may be empty
 def add_mana_text(text, sym):
     if not text:
-        return '{T}: Add ' + sym +'.'
+        return '{T}: Add ' + sym + '.'
     elif '{T}: Add ' + sym not in text:
-        return text + '\n' + '{T}: Add ' + sym +'.'
+        return text + '\n' + '{T}: Add ' + sym + '.'
     return text
+
 
 lands = [('Plains', '{W}'), ('Swamp', '{B}'), ('Island', '{U}'), ('Mountain', '{R}'), ('Forest', '{G}')]
 for land_name, sym in lands:
     cards_df['text_preworked'] = cards_df.progress_apply(lambda x:
-                                      add_mana_text(x['text_preworked'], sym)
-                                      if isinstance(x['subtypes'], list) and land_name in x['subtypes']
-                                      else x['text_preworked'],
-                              axis=1
-                             )
+                                                         add_mana_text(x['text_preworked'], sym)
+                                                         if isinstance(x['subtypes'], list) and land_name in x[
+                                                             'subtypes']
+                                                         else x['text_preworked'],
+                                                         axis=1
+                                                         )
 # -
 
 # Check whether card can add mana
 cards_df['has_add'] = cards_df['text_preworked'].apply(
     lambda x: True
-              if re.findall(r'add ', str(x), flags=re.IGNORECASE)
-              else False
+    if re.findall(r'add ', str(x), flags=re.IGNORECASE)
+    else False
 )
 
 sep = "ª"
@@ -216,7 +251,7 @@ unique_card_ids_names.to_sql('unique_card_ids_names', engine, index=False, if_ex
 
 cols_containing_lists = []
 for col, ob in zip(cards_df.iloc[0].index, cards_df.iloc[0]):
-    #print(i, ob, type(ob))
+    # print(i, ob, type(ob))
     if isinstance(ob, list):
         cols_containing_lists.append(col)
 cols_containing_lists
@@ -231,7 +266,7 @@ for col in cols_containing_lists:
         temp[col] = temp[col].fillna('colorless')
     temp = temp.dropna().set_index('name')
     print('Exporting')
-    temp.to_sql('cards_'+col, engine, if_exists='replace')
+    temp.to_sql('cards_' + col, engine, if_exists='replace')
 
 # ## Finishing
 
@@ -251,7 +286,7 @@ array_of_supertypes_tuples = cards_df['supertypes'].dropna().apply(tuple).unique
 cards_supertypes = tuple()
 for tup in array_of_supertypes_tuples:
     cards_supertypes += tup
-    
+
 cards_supertypes = set(cards_supertypes)
 cards_supertypes
 
@@ -261,9 +296,9 @@ array_of_types_tuples = cards_df['types'].dropna().apply(tuple).unique()
 cards_types = tuple()
 for tup in array_of_types_tuples:
     cards_types += tup
-    
+
 cards_types = set(cards_types)
-#cards_types
+# cards_types
 
 # +
 # Create set of types
@@ -271,12 +306,12 @@ array_of_subtypes_tuples = cards_df['subtypes'].dropna().apply(tuple).unique()
 cards_subtypes = tuple()
 for tup in array_of_subtypes_tuples:
     cards_subtypes += tup
-    
+
 cards_subtypes = set(cards_subtypes)
-#cards_subtypes
+# cards_subtypes
 
 # +
-#cards_df.head(10).transpose()
+# cards_df.head(10).transpose()
 
 # + deletable=false editable=false run_control={"frozen": true}
 # import requests
@@ -292,7 +327,7 @@ with open('rules.txt', 'r', encoding='latin-1') as f:
 
 kw_abilities_pat = r'702\.\d+\. ([A-Za-z ]+)'
 abilities = re.findall(kw_abilities_pat, comprules, re.IGNORECASE)
-abilities.pop(0) # Its just the rulings 
+abilities.pop(0)  # Its just the rulings
 abilities.sort()
 # abilities
 
@@ -311,8 +346,10 @@ abilities.sort()
 # Sentences which are not in any case above are "rest" sentences.
 
 # + code_folding=[]
-ability_start_pattern = r'|'.join(['^'+ab+r'\b' for ab in abilities])
-#print(ability_start_pattern)
+ability_start_pattern = r'|'.join(['^' + ab + r'\b' for ab in abilities])
+
+
+# print(ability_start_pattern)
 def is_ability_sentence(sentence):
     elem_starting_with_ability = []
     exceptions = ['Cycling abilities you activate cost up to {2} less to activate.']
@@ -324,7 +361,7 @@ def is_ability_sentence(sentence):
             elem_starting_with_ability.append(re.search(ability_start_pattern, elem, re.IGNORECASE))
         else:
             return False
-    if len(elems)==len(elem_starting_with_ability):
+    if len(elems) == len(elem_starting_with_ability):
         return True
     raise Exception('We should never get here')
 
@@ -337,7 +374,9 @@ import uuid
 
 # + code_folding=[1]
 import collections
-def splitDataFrameList(df,target_column,separator=None):
+
+
+def splitDataFrameList(df, target_column, separator=None):
     '''
     https://gist.github.com/jlln/338b4b0b55bd6984f883
     df = dataframe to split,
@@ -346,8 +385,9 @@ def splitDataFrameList(df,target_column,separator=None):
     returns: a dataframe with each entry for the target column separated, with each element moved into a new row. 
     The values in the other columns are duplicated across the newly divided rows.
     '''
-    def splitListToRows(row,row_accumulator,target_column,separator):
-        split_row = row[target_column]#.split(separator)
+
+    def splitListToRows(row, row_accumulator, target_column, separator):
+        split_row = row[target_column]  # .split(separator)
         if isinstance(split_row, collections.Iterable):
             for s in split_row:
                 new_row = row.to_dict()
@@ -357,8 +397,9 @@ def splitDataFrameList(df,target_column,separator=None):
             new_row = row.to_dict()
             new_row[target_column] = np.nan
             row_accumulator.append(new_row)
+
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(new_rows,target_column,separator))
+    df.apply(splitListToRows, axis=1, args=(new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
@@ -372,44 +413,47 @@ def get_paragraph_type(paragraph):
     else:
         return 'rest'
 
+
 def split_abilities_and_keep_the_rest(df_row):
     '''Returns a list of abilities or a list of one element, which is not ability'''
     if df_row['paragraph_type'] == 'ability':
-        return [x.strip() for x in df_row['paragraph'].replace(';',',').split(',')]
-    
+        return [x.strip() for x in df_row['paragraph'].replace(';', ',').split(',')]
+
     return [df_row['paragraph']]
+
 
 def get_aspas(text):
     if pd.isnull(text):
         return np.nan
-    
+
     reg = re.findall(r'\"(.+?)\"', text)
-    
+
     if not reg:
         return np.nan
-    
+
     res = reg[0]
-    
+
     return res
-        
+
+
 def get_paragraphs_and_types_df(card_row):
     res = pd.DataFrame()
     temp = pd.DataFrame()
-    
+
     # Get initial paragraphs
     temp['paragraph'] = card_row['text_preworked'].split('\n')
     temp[ASPAS_TEXT] = temp['paragraph'].apply(get_aspas)
     temp['paragraph'] = temp.apply(lambda x: x['paragraph'].replace(x[ASPAS_TEXT], ASPAS_TEXT)
-                                             if not pd.isnull(x[ASPAS_TEXT]) else x['paragraph'],
-                                  axis=1)
-    
+    if not pd.isnull(x[ASPAS_TEXT]) else x['paragraph'],
+                                   axis=1)
+
     temp['paragraph_type'] = temp['paragraph'].apply(get_paragraph_type)
-    
+
     # Split the abilities paragraphs into multiple rows
     temp['paragraph'] = temp.apply(split_abilities_and_keep_the_rest, axis=1)
     temp = splitDataFrameList(temp, 'paragraph')
     res = temp
-    
+
     res['card_id'] = card_row.name
     res['paragraph_order'] = range(res.shape[0])
     return res
@@ -420,7 +464,7 @@ def get_paragraphs_and_types_df(card_row):
 cards_df['df_paragraphs'] = cards_df.progress_apply(get_paragraphs_and_types_df, axis=1)
 
 # +
-#cards_df[['text_preworked','df_paragraphs']].iloc[21]['df_paragraphs']
+# cards_df[['text_preworked','df_paragraphs']].iloc[21]['df_paragraphs']
 # -
 
 cards_df_paragraphs = pd.concat(cards_df['df_paragraphs'].values)
@@ -433,17 +477,19 @@ cards_df_paragraphs.head(4)
 
 # ## Lets use the same approach and separate paragraphs in abilities-complements, costs-effects and keep the rest as is
 
-ability_and_complement_regex = r'(' + ability_start_pattern +')' + r'(.*)'
-#ability_and_complement_regex
+ability_and_complement_regex = r'(' + ability_start_pattern + ')' + r'(.*)'
+
+
+# ability_and_complement_regex
 
 def get_pop_and_complements_df(paragraph_row):
     res = pd.DataFrame()
     pat_ability = re.compile(ability_and_complement_regex, re.IGNORECASE)
-    
+
     if paragraph_row['paragraph_type'] == 'ability':
-        
-        #print(res['pop'].iloc[0])
-        #print(re.findall(pat, res['pop'].iloc[0]))
+
+        # print(res['pop'].iloc[0])
+        # print(re.findall(pat, res['pop'].iloc[0]))
         x = paragraph_row['paragraph']
         if (not pd.isnull(x)) and re.findall(pat_ability, x):
             ability = re.findall(pat_ability, x)[0][0].strip()
@@ -451,39 +497,39 @@ def get_pop_and_complements_df(paragraph_row):
         else:
             import pdb
             pdb.set_trace()
-        
-        res['pop'] = [ability, ability_complement] 
-        res['pop_type'] =  ['ability', 'ability_complement'] 
+
+        res['pop'] = [ability, ability_complement]
+        res['pop_type'] = ['ability', 'ability_complement']
         res['pop_order'] = range(res['pop'].shape[0])
-    
+
     elif paragraph_row['paragraph_type'] == 'activated':
         '''Break the costs in individual ones'''
         costs, effect = paragraph_row['paragraph'].split(':')
-        
+
         exceptions = ['Pay half your life, rounded up']
         if costs in exceptions:
-            costs = costs.replace(',','')
-            
-        res['pop'] =  costs.split(',') + [effect]
+            costs = costs.replace(',', '')
+
+        res['pop'] = costs.split(',') + [effect]
         types = ['activation_cost' for x in costs.split(',')] + ['activated_effect']
-        
-        res['pop_type'] =  types
+
+        res['pop_type'] = types
         res['pop_order'] = range(res['pop'].shape[0])
-        
+
     else:
         '''Keep the rest as rest or effect'''
         effect = paragraph_row['paragraph']
-        
-        res['pop'] =  [effect]
-        res['pop_type'] =  ['effect']
+
+        res['pop'] = [effect]
+        res['pop_type'] = ['effect']
         res['pop_order'] = range(res['pop'].shape[0])
-        
-        
+
     res['card_id'] = paragraph_row['card_id']
     res['paragraph_order'] = paragraph_row['paragraph_order']
     res['paragraph_type'] = paragraph_row['paragraph_type']
     res['paragraph'] = paragraph_row['paragraph']
     return res
+
 
 cards_df_paragraphs['pop'] = cards_df_paragraphs.progress_apply(get_pop_and_complements_df, axis=1)
 
@@ -492,8 +538,8 @@ cards_df_paragraphs['pop'] = cards_df_paragraphs.progress_apply(get_pop_and_comp
 # -
 
 cards_df_pops = pd.concat(cards_df_paragraphs['pop'].values, sort=True)
-#cards_df_pops['pop_hash'] = cards_df_pops['pop'].apply(lambda x: uuid.uuid4().hex)
-#cards_df_pops.sort_values(by=['card_id','paragraph_order','pop_order']).head(3)
+# cards_df_pops['pop_hash'] = cards_df_pops['pop'].apply(lambda x: uuid.uuid4().hex)
+# cards_df_pops.sort_values(by=['card_id','paragraph_order','pop_order']).head(3)
 
 # + deletable=false editable=false run_control={"frozen": true}
 # cards_df_pops[cards_df_pops['pop_type']=='activation_cost']['pop'].dropna().unique()
@@ -513,51 +559,53 @@ cards_df_pops = pd.concat(cards_df_paragraphs['pop'].values, sort=True)
 # ## Lets use the same approach and separate conditions-"result effect"
 
 condition_regex = r'((?:if |whenever |when |only |unless |as long as ).*?[,.])'
-#condition_regex
+# condition_regex
 
 intensifier_regex = r'((?:for each ).*?[,.])'
-#intensifier_regex
+# intensifier_regex
 
 step_condition_regex = r'(at the (?:beginning |end )of.*?[,.])'
-#step_condition_regex
+
+
+# step_condition_regex
 
 # + code_folding=[0]
 def get_conditions_and_effects_df(pop_row, original_cols=[]):
     res = pd.DataFrame()
     text = pop_row['pop']
-    
+
     # Get list of conditions in text
     reg_cond = re.findall(condition_regex, text, flags=re.IGNORECASE)
     if not reg_cond:
         reg_cond = []
-    
+
     # Get list of step (time) conditions in text
     reg_step_cond = re.findall(step_condition_regex, text, flags=re.IGNORECASE)
     if not reg_step_cond:
         reg_step_cond = []
-        
+
     # Get list of intensifiers in text
     reg_intensifier = re.findall(intensifier_regex, text, flags=re.IGNORECASE)
     if not reg_intensifier:
-        reg_intensifier = []    
-    
-    # Get the rest of the text in a list
+        reg_intensifier = []
+
+        # Get the rest of the text in a list
     text_wo_conditions = text
     for cond in reg_cond + reg_step_cond + reg_intensifier:
         text_wo_conditions = text_wo_conditions.replace(cond, '')
     text_wo_conditions = text_wo_conditions.strip(',. ')
     text_wo_conditions = [text_wo_conditions]
-    
+
     temp = []
     for part in reg_cond:
-        temp.append({'part_order':text.find(part), 'part': part.strip(',. '), 'part_type': 'condition'})
+        temp.append({'part_order': text.find(part), 'part': part.strip(',. '), 'part_type': 'condition'})
     for part in reg_step_cond:
-        temp.append({'part_order':text.find(part), 'part': part.strip(',. '), 'part_type': 'step_condition'})
+        temp.append({'part_order': text.find(part), 'part': part.strip(',. '), 'part_type': 'step_condition'})
     for part in reg_intensifier:
-        temp.append({'part_order':text.find(part), 'part': part.strip(',. '), 'part_type': 'intensifier_for_each'})
+        temp.append({'part_order': text.find(part), 'part': part.strip(',. '), 'part_type': 'intensifier_for_each'})
     for part in text_wo_conditions:
-        temp.append({'part_order':text.find(part), 'part': part.strip(',. '), 'part_type': 'wo_conditions'})
-    
+        temp.append({'part_order': text.find(part), 'part': part.strip(',. '), 'part_type': 'wo_conditions'})
+
     # Reset order to start from zero
     res = pd.DataFrame(temp).sort_values(by=['part_order'])
     res = res.reset_index(drop=True)
@@ -565,16 +613,17 @@ def get_conditions_and_effects_df(pop_row, original_cols=[]):
 
     for col in original_cols:
         res[col] = pop_row[col]
-        
+
     return res
 
+
 cards_df_pops['pop_parts'] = cards_df_pops.progress_apply(get_conditions_and_effects_df,
-                                                           args=(cards_df_pops.columns,),
-                                                           axis=1)
+                                                          args=(cards_df_pops.columns,),
+                                                          axis=1)
 cards_df_pop_parts = pd.concat(cards_df_pops['pop_parts'].values)
 
 # + code_folding=[]
-#cards_df_pop_parts
+# cards_df_pop_parts
 # -
 
 # ## Detect named cards cited inside cards text
@@ -586,9 +635,9 @@ cards_df_pop_parts = pd.concat(cards_df_pops['pop_parts'].values)
 # 4. Create entity detector for CARD_NAME_1, CARD_NAME_2,...
 # 5. Manually add edge between CARD_NAME_1 and its actual value (the actual card name)
 
-named_card_pattern = r'('+r'|'.join(['{0}'.format(n) for n in cards_names])+r')'
+named_card_pattern = r'(' + r'|'.join(['{0}'.format(n) for n in cards_names]) + r')'
 named_card_regex = r' named ' + named_card_pattern + '((?: or )' + named_card_pattern + ')?' + r'.*?'
-#named_card_regex
+# named_card_regex
 
 # + [markdown] heading_collapsed=true
 # ### Tests
@@ -633,11 +682,10 @@ named_card_regex = r' named ' + named_card_pattern + '((?: or )' + named_card_pa
 # -
 
 cards_df_pop_parts['text_pk'] = cards_df_pop_parts.progress_apply(lambda x:
-                                                         '-'.join([x['card_id'],
-                                                                   str(x['paragraph_order']),
-                                                                   str(x['pop_order']),
-                                                                   str(x['part_order'])]), axis=1)
-
+                                                                  '-'.join([x['card_id'],
+                                                                            str(x['paragraph_order']),
+                                                                            str(x['pop_order']),
+                                                                            str(x['part_order'])]), axis=1)
 
 # ## Drop empty pops
 
@@ -677,17 +725,18 @@ cards_df_pop_parts = cards_df_pop_parts.dropna(subset=['part'])
 # -
 
 cards_df_pop_parts['paragraph_pk'] = cards_df_pop_parts.progress_apply(lambda x:
-                                                         '-'.join([x['card_id'],
-                                                                   str(int(x['paragraph_order']))]), axis=1)
+                                                                       '-'.join([x['card_id'],
+                                                                                 str(int(x['paragraph_order']))]),
+                                                                       axis=1)
 
 cards_df_pop_parts['pop_pk'] = cards_df_pop_parts.progress_apply(lambda x:
-                                                         '-'.join([x['card_id'],
-                                                                   str(int(x['paragraph_order'])),
-                                                                   str(int(x['pop_order']))
-                                                                  ]), axis=1)
+                                                                 '-'.join([x['card_id'],
+                                                                           str(int(x['paragraph_order'])),
+                                                                           str(int(x['pop_order']))
+                                                                           ]), axis=1)
 
 cards_df_pop_parts.set_index(['card_id', 'paragraph_order', 'pop_order', 'part_order',
-                              'paragraph_pk','pop_pk']).to_sql(
+                              'paragraph_pk', 'pop_pk']).to_sql(
     export_table_name, engine, if_exists='replace')
 
 # +
@@ -698,28 +747,28 @@ cards_df_pop_parts.set_index(['card_id', 'paragraph_order', 'pop_order', 'part_o
 
 # + hideCode=false
 metrics_pop = cards_df_pop_parts.pivot_table(
-    index = ['card_id', 'paragraph_pk', 'pop_type'],
-    values = ['pop'],
-    aggfunc = lambda x: len(x)
+    index=['card_id', 'paragraph_pk', 'pop_type'],
+    values=['pop'],
+    aggfunc=lambda x: len(x)
 )
 metrics_pop.columns = ['pop_count']
-metrics_pop[metrics_pop['pop_count']>5]
+metrics_pop[metrics_pop['pop_count'] > 5]
 # -
 
 metrics_pop.to_sql(
-    export_table_name+'_metrics_pop', engine, if_exists='replace')
+    export_table_name + '_metrics_pop', engine, if_exists='replace')
 
 # ## Create part metrics
 
 # + hideCode=false
 metrics_part = cards_df_pop_parts.pivot_table(
-    index = ['card_id', 'paragraph_pk', 'pop_pk', 'part_type'],
-    values = ['part'],
-    aggfunc = lambda x: len(x)
+    index=['card_id', 'paragraph_pk', 'pop_pk', 'part_type'],
+    values=['part'],
+    aggfunc=lambda x: len(x)
 )
 metrics_part.columns = ['part_count']
-metrics_part[metrics_part['part_count']>3]
+metrics_part[metrics_part['part_count'] > 3]
 # -
 
 metrics_part.to_sql(
-    export_table_name+'_metrics_part', engine, if_exists='replace')
+    export_table_name + '_metrics_part', engine, if_exists='replace')
