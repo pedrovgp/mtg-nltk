@@ -47,6 +47,14 @@ from IPython.display import clear_output
 import logging
 import inspect
 import linecache
+import os
+
+try:
+    __file__
+except NameError:
+    # for running in ipython
+    fname = '01.02-cards-ETL-token-nodes-edges-tables.py'
+    __file__ = os.path.abspath(os.path.realpath(fname))
 
 logPathFileName = './logs/' + '01.02.log'
 
@@ -843,7 +851,7 @@ chunksize = 50
 import datetime
 start = datetime.datetime.now()
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
-for i in range(unique_card_ids.shape[0]//chunksize):
+for i in tqdm(range(unique_card_ids.shape[0]//chunksize)):
     
     if not ((i+1)*chunksize) % (10*chunksize):
         clear_output()
@@ -855,13 +863,13 @@ for i in range(unique_card_ids.shape[0]//chunksize):
                          )
     cards_df_for_graph.loc[:, 'part_doc'] = cards_df_for_graph['part'].apply(lambda x: nlp(x.strip('.,')))
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Parse for graph
     cards_df_for_graph = cards_df_for_graph.apply(parse_doc_to_list_of_dicts, args=(cards_df_pop_parts.columns,), axis=1)
     cards_df_for_graph = pd.concat(cards_df_for_graph.values, sort=False).reset_index(drop=True)
     #cards_df_for_graph.describe().transpose()
     
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Join with cards_df to get a few more details
     cdfg=cards_df_for_graph
     cdfg = cards_df_for_graph.merge(cards_df, left_on=['card_id'], right_index=True)
@@ -876,13 +884,13 @@ for i in range(unique_card_ids.shape[0]//chunksize):
     # attention: head is also a token
     # and set node and edge attributes (both dfs should contain the attributes)
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # NODES ##########################################
     nodes = {}
     nodes_cols = {}
     nodes_attr = {}
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Token nodes
     nodes_cols['token'] = ['token_node', 'token_node_text', 'token_node_pos', 'token_node_tag',
            'token_head_node', 'token_head_dep',
@@ -899,7 +907,7 @@ for i in range(unique_card_ids.shape[0]//chunksize):
                                                             x['token_node_tag']]), axis=1)
     nodes_attr['token'] = [x for x in nodes['token'].columns if x not in ['node_id']]
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Entity nodes
     nodes_cols['entity'] = ['entity_node', 'entity_node_entity','entity_node_ent_type', 'entity_node_desc']
     nodes['entity'] = (cdfg[nodes_cols['entity']]
@@ -912,7 +920,7 @@ for i in range(unique_card_ids.shape[0]//chunksize):
                                                             ]), axis=1)
     nodes_attr['entity'] = [x for x in nodes['entity'].columns if x not in ['node_id']]
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Part nodes
     nodes_cols['part'] = ['part_node',
                           'part', 'part_order', 'part_type',
@@ -942,7 +950,7 @@ for i in range(unique_card_ids.shape[0]//chunksize):
     #                                               '-'.join([x['pop']]), axis=1)
     # nodes_attr['pop'] = [x for x in nodes['pop'].columns if x not in ['node_id']]
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Card nodes
     nodes_cols['card'] =  ['card_id'] + mains_col_names
     nodes['card'] = cdfg[nodes_cols['card']]
@@ -954,14 +962,14 @@ for i in range(unique_card_ids.shape[0]//chunksize):
                                                   '-'.join([x['card_name']]), axis=1)
     nodes_attr['card'] = [x for x in nodes['card'].columns if x not in ['node_id']]
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # EDGES #########################################
     card_as_start = True # Sets card as source and pop, part, token, entity as targets
     edges = {} # k->type, v-> dataframe
     edges_cols = {} # list
     edges_attr = {} # list
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Token edges to head (and head to part)
     edges_cols['token_to_head_part'] = ['token_node', 'token_head_node', 'token_head_dep',
                            'part_order', 'part_type', 'card_id', 'paragraph_order', 
@@ -980,7 +988,7 @@ for i in range(unique_card_ids.shape[0]//chunksize):
     edges_attr['token_to_head_part'] = [x for x in edges['token_to_head_part'].columns
                                         if x not in ['source', 'target']]
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Entity edges to Token
     edges_cols['entity_to_token'] = ['token_node', 'entity_node']
     renamer = {'entity_node':'source', 'token_node':'target'}
@@ -1078,7 +1086,7 @@ for i in range(unique_card_ids.shape[0]//chunksize):
     edges_attr['part_to_card'] = [x for x in edges['part_to_card'].columns
                                         if x not in ['source', 'target']]
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Build dfs
     nodes_df = pd.concat(nodes.values(), sort=True).drop_duplicates(subset=['node_id'])
     nodes_df = nodes_df.dropna(subset=[x for x in nodes_df.columns if not x in ['node_id', 'label']], how='all')
@@ -1493,3 +1501,5 @@ logger.info('Done exporting to Postgres')
 
 # + deletable=false editable=false run_control={"frozen": true}
 # res.pivot_table(values=['cont'], index=['ent_node', 'label', 'pop_type'], columns=['edge_type'], aggfunc=pd.np.sum)
+
+logger.info(f'FINISHED: {__file__}')

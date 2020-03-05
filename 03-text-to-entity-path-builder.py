@@ -432,4 +432,4 @@ for i, chunk in enumerate(chunks):
 # test
 # -
 
-
+logger.info(f'FINISHED: {__file__}')

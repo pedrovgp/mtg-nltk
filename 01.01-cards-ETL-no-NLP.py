@@ -45,6 +45,15 @@ from collections import defaultdict
 import logging
 import inspect
 import linecache
+import os
+
+try:
+    __file__
+except NameError:
+    # for running in ipython
+    fname = '01.01-cards-ETL-no-NLP.py'
+    __file__ = os.path.abspath(os.path.realpath(fname))
+
 logPathFileName = './logs/' + '01.01.log'
 
 # create logger'
@@ -68,6 +77,7 @@ logger.addHandler(ch)
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
 # This is for terminal
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 from tqdm import tqdm
 tqdm.pandas(desc="Progress")
 
@@ -701,7 +711,7 @@ cards_df_pop_parts['text_pk'] = cards_df_pop_parts.progress_apply(lambda x:
 
 # ## Drop empty pops
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
-cards_df_pop_parts['part'] = cards_df_pop_parts['part'].replace('', np.nan).dropna()
+cards_df_pop_parts['part'] = cards_df_pop_parts['part'].replace('', np.nan)
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts = cards_df_pop_parts.dropna(subset=['part'])
 
@@ -788,3 +798,5 @@ metrics_part[metrics_part['part_count'] > 3]
 
 metrics_part.to_sql(
     export_table_name + '_metrics_part', engine, if_exists='replace')
+
+logger.info(f'FINISHED: {__file__}')
