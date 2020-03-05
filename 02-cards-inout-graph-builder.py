@@ -77,11 +77,11 @@ def log_next_line(lines=1, level=logger.info):
 # This is for jupyter notebook
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
-# tqdm_func = tqdm.tqdm_notebook
+# tqdm_func = tqdm_notebook
 # This is for terminal
 from tqdm import tqdm
 tqdm.pandas(desc="Progress")
-tqdm_func = tqdm.tqdm
+tqdm_func = tqdm
 
 # # Params
 
@@ -740,11 +740,12 @@ for l in list_of_lists_of_ids:
 
 # +
 from multiprocessing import Pool
-
+import tqdm
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 if __name__ == '__main__':
     with Pool(4) as p:
         r = list(tqdm_func(p.imap(functions.build_graphs_of_cards, list_to_distribute), total=len(list_to_distribute)))
+        # r = list(p.imap(functions.build_graphs_of_cards, list_to_distribute))
 #         p.map(functions.build_graphs_of_cards, list_to_distribute)
 # -
 
@@ -769,3 +770,5 @@ if __name__ == '__main__':
 #         tuple(l)#, cards_graphs_as_json_to_table, out_nodes, out_edges, in_nodes, in_edges, engine)
 #     )
 # #list_to_distribute
+
+logger.info(f'FINISHED: {__file__}')
