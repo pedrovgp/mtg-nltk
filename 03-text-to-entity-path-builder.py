@@ -39,18 +39,54 @@ import pandas as pd
 import re
 from collections import defaultdict
 from IPython.display import clear_output
-# from tqdm import tqdm # https://stackoverflow.com/questions/18603270/progress-indicator-during-pandas-operations-python
-# tqdm.pandas()
 
+import logging
+import inspect
+import linecache
 
-from tqdm.notebook import tqdm_notebook
-tqdm_notebook.pandas()
+logPathFileName = './logs/' + '03.log'
+
+# create logger'
+logger = logging.getLogger('03')
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+# add the handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
+
+def log_next_line(lines=1, level=logger.info):
+    '''
+    TODO: this will always log again this same function when called
+
+    :param lines: how many relative lines ahead to log (negative for previous)
+    :param level: logger function with log level to log
+    :return: None, but logs stuff
+    '''
+    for i in range(1, lines+1):
+        level(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + i))
+
+# This is for jupyter notebook
+# from tqdm.notebook import tqdm_notebook
+# tqdm_notebook.pandas()
+# This is for terminal
+from tqdm import tqdm
+tqdm.pandas(desc="Progress")
 
 # # Params
 
 from sqlalchemy import create_engine
 import sqlalchemy
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
 # # Helping functions
@@ -317,7 +353,7 @@ def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
 #         new_rows.append(graph_row)
 # n = pd.DataFrame(new_rows)
 # -
-
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 df = pd.read_sql_query('SELECT * from {0} WHERE card_id IN ({1})'.
                            format(table_name, ','.join(["'"+x+"'" for x in chunks[0]['card_id']])),
                            engine,
@@ -327,14 +363,17 @@ df = pd.read_sql_query('SELECT * from {0} WHERE card_id IN ({1})'.
 # + code_folding=[]
 # Iter chunks and save simple paths
 start = datetime.datetime.now()
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 for i, chunk in enumerate(chunks):
-    
+
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     df = pd.read_sql_query('SELECT * from {0} WHERE card_id IN ({1})'.
                            format(table_name, ','.join(["'"+x+"'" for x in chunk['card_id']])),
                            engine,
                           )
     
-    paths_series = df.apply(
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    paths_series = df.progress_apply(
         get_df_for_subgraphs_of_paths_from_card_to_entities, axis='columns')
 
 
@@ -354,7 +393,7 @@ for i, chunk in enumerate(chunks):
 #         # Just ignore, it alredy exists
 #         pass
 
-    print('Concatenating')
+    logger.info('Concatenating')
     df = (pd.concat(paths_series.values, sort=False)
           .reset_index(drop=True)
           .set_index(['card_id', 'paragraph_order', 'pop_order', 'part_order', 'entity_node_entity'])
@@ -364,9 +403,9 @@ for i, chunk in enumerate(chunks):
     df.to_sql(to_table_name, engine, if_exists=method,
                   dtype = {'path_graph_json':sqlalchemy.types.JSON})
 
-    print('Chunk {0}/{1} ELAPSED: {2}'.format(i, len(chunks), datetime.datetime.now()-start))
-    print('Export finished')
-    if not i%15: clear_output()
+    logger.info('Chunk {0}/{1} ELAPSED: {2}'.format(i, len(chunks), datetime.datetime.now()-start))
+    logger.info('Export finished')
+    if not i % 15: clear_output()
 
 
 # + code_folding=[0] deletable=false editable=false hideCode=false run_control={"frozen": true}

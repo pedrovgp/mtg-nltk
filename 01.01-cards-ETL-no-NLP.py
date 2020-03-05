@@ -41,10 +41,10 @@ import pandas as pd
 import numpy as np
 import re
 from collections import defaultdict
-# from tqdm import tqdm
-# tqdm.pandas()
 
 import logging
+import inspect
+import linecache
 logPathFileName = './logs/' + '01.01.log'
 
 # create logger'
@@ -64,9 +64,12 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-from tqdm.notebook import tqdm_notebook
-
-tqdm_notebook.pandas()
+# This is for jupyter notebook
+# from tqdm.notebook import tqdm_notebook
+# tqdm_notebook.pandas()
+# This is for terminal
+from tqdm import tqdm
+tqdm.pandas(desc="Progress")
 
 
 # + hideCode=false
@@ -93,6 +96,8 @@ from sqlalchemy import create_engine
 
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
 engine.connect()
+
+logger.info(engine.connect())
 
 export_table_name = 'cards_text_parts'
 
@@ -146,13 +151,14 @@ cards_df = cards_df.drop(columns=['foreignData', 'legalities', 'prices', 'purcha
 # cards_df = cards_df[cards_df['name'].isin(all_cards_names_in_decks)]
 
 # ### Add and transform features
-
+logger.info('p/t')
 # + code_folding=[]
 # Make numeric power and toughness
 cards_df['power_num'] = pd.to_numeric(cards_df['power'], errors='coerce')
 cards_df['toughness_num'] = pd.to_numeric(cards_df['toughness'], errors='coerce')
 # -
 
+logger.info('mana costs')
 # Add colored and generic cmcs
 # Find all patterns like {.*?} [1], than find all {\d} or {X} (this is generic) [2]
 # Subtract the len([2]) from len([1])
@@ -173,6 +179,7 @@ cards_df['manaCost_generic'] = cards_df['cmc'] - cards_df['manaCost_coloured']
 # Replace name by SELF and remove anything between parethesis
 pattern_parenthesis = r' ?\(.*?\)'
 
+logger.info('apply text prework')
 
 def prework_text(card):
     t = str(card['text']).replace(card['name'], 'SELF')
@@ -205,13 +212,15 @@ for land_name, sym in lands:
                                                          axis=1
                                                          )
 # -
-
+logger.info('has add')
 # Check whether card can add mana
 cards_df['has_add'] = cards_df['text_preworked'].apply(
     lambda x: True
     if re.findall(r'add ', str(x), flags=re.IGNORECASE)
     else False
 )
+
+logger.info('text preworked')
 
 sep = "ª"
 if cards_df['text_preworked'].str.contains(sep).any():
@@ -233,16 +242,20 @@ assert cards_df[cards_df['text_preworked'].str.contains('\(').fillna(False)]['te
 # -
 
 # Export to sql
+logger.info('cards_df to sql')
 cards_df.set_index(['id', 'name']).to_sql('cards', engine, if_exists='replace')
 
 # +
 # Export keys tables
+logger.info('unique_ids to sql')
 unique_ids = pd.DataFrame(cards_df['id'].unique())
 unique_ids.to_sql('unique_card_ids', engine, index=False, if_exists='replace')
 
+logger.info('unique_names to sql')
 unique_names = cards_df[['name']].drop_duplicates()
 unique_names.to_sql('unique_card_names', engine, index=False, if_exists='replace')
 
+logger.info('unique_card_ids_names to sql')
 unique_card_ids_names = cards_df[['id', 'name']].drop_duplicates(subset=['name'])
 unique_card_ids_names.to_sql('unique_card_ids_names', engine, index=False, if_exists='replace')
 # -
@@ -259,13 +272,12 @@ cols_containing_lists
 # ### Export
 
 for col in cols_containing_lists:
-    print(col)
+    logger.info(f'Procenssing col containing list: {col}')
     temp = cards_df[['name', col]].drop_duplicates(subset=['name'])
     temp = splitDataFrameList(temp, col)
     if col in ['colorIdentity', 'colors']:
         temp[col] = temp[col].fillna('colorless')
     temp = temp.dropna().set_index('name')
-    print('Exporting')
     temp.to_sql('cards_' + col, engine, if_exists='replace')
 
 # ## Finishing
@@ -460,7 +472,7 @@ def get_paragraphs_and_types_df(card_row):
 
 
 # -
-
+logger.info('''cards_df['df_paragraphs'] = cards_df.progress_apply(get_paragraphs_and_types_df, axis=1)''')
 cards_df['df_paragraphs'] = cards_df.progress_apply(get_paragraphs_and_types_df, axis=1)
 
 # +
@@ -530,13 +542,13 @@ def get_pop_and_complements_df(paragraph_row):
     res['paragraph'] = paragraph_row['paragraph']
     return res
 
-
+logger.info('''cards_df_paragraphs['pop'] = cards_df_paragraphs.progress_apply(get_pop_and_complements_df, axis=1)''')
 cards_df_paragraphs['pop'] = cards_df_paragraphs.progress_apply(get_pop_and_complements_df, axis=1)
 
 # + deletable=false editable=false run_control={"frozen": true}
 # cards_df_paragraphs.iloc[3]['pop']
 # -
-
+logger.info('''cards_df_pops = pd.concat(cards_df_paragraphs['pop'].values, sort=True)''')
 cards_df_pops = pd.concat(cards_df_paragraphs['pop'].values, sort=True)
 # cards_df_pops['pop_hash'] = cards_df_pops['pop'].apply(lambda x: uuid.uuid4().hex)
 # cards_df_pops.sort_values(by=['card_id','paragraph_order','pop_order']).head(3)
@@ -616,7 +628,7 @@ def get_conditions_and_effects_df(pop_row, original_cols=[]):
 
     return res
 
-
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pops['pop_parts'] = cards_df_pops.progress_apply(get_conditions_and_effects_df,
                                                           args=(cards_df_pops.columns,),
                                                           axis=1)
@@ -680,7 +692,7 @@ named_card_regex = r' named ' + named_card_pattern + '((?: or )' + named_card_pa
 # + deletable=false editable=false run_control={"frozen": true}
 # #cards_df_pop_parts = pd.read_sql_table('cards_text_parts', engine)
 # -
-
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts['text_pk'] = cards_df_pop_parts.progress_apply(lambda x:
                                                                   '-'.join([x['card_id'],
                                                                             str(x['paragraph_order']),
@@ -688,14 +700,16 @@ cards_df_pop_parts['text_pk'] = cards_df_pop_parts.progress_apply(lambda x:
                                                                             str(x['part_order'])]), axis=1)
 
 # ## Drop empty pops
-
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts['part'] = cards_df_pop_parts['part'].replace('', np.nan).dropna()
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts = cards_df_pop_parts.dropna(subset=['part'])
 
 # ## Avoid pop
 
 # + code_folding=[]
 # Lets avoid creating a pop node
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts['part_type_full'] = cards_df_pop_parts['pop_type'] + '-' + cards_df_pop_parts['part_type']
 # -
 
@@ -709,12 +723,13 @@ cards_df_pop_parts['part_type_full'] = cards_df_pop_parts['pop_type'] + '-' + ca
 # -
 
 # ## Export
-
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts.set_index(['card_id', 'paragraph_order', 'pop_order', 'part_order']).to_sql(
     export_table_name, engine, if_exists='replace')
 
 # # Create metrics for pops and parts
 
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts = pd.read_sql_table(export_table_name, engine)
 
 cards_df_pop_parts['part'] = cards_df_pop_parts['part'].replace('', np.nan).dropna()
@@ -723,12 +738,13 @@ cards_df_pop_parts = cards_df_pop_parts.dropna(subset=['part'])
 # +
 # cards_df_pop_parts[cards_df_pop_parts['card_id']=='ebf1a7f3-7621-5fe7-826f-296d088df97c']
 # -
-
+logger.info('''cards_df_pop_parts['paragraph_pk'] = cards_df_pop_parts.progress_apply''')
 cards_df_pop_parts['paragraph_pk'] = cards_df_pop_parts.progress_apply(lambda x:
                                                                        '-'.join([x['card_id'],
                                                                                  str(int(x['paragraph_order']))]),
                                                                        axis=1)
 
+logger.info('''cards_df_pop_parts['pop_pk'] = cards_df_pop_parts.progress_apply''')
 cards_df_pop_parts['pop_pk'] = cards_df_pop_parts.progress_apply(lambda x:
                                                                  '-'.join([x['card_id'],
                                                                            str(int(x['paragraph_order'])),

@@ -40,11 +40,55 @@ import re
 from collections import defaultdict
 from IPython.display import clear_output
 
+import logging
+import inspect
+import linecache
+
+logPathFileName = './logs/' + '02.log'
+
+# create logger'
+logger = logging.getLogger('02')
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+# add the handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
+
+def log_next_line(lines=1, level=logger.info):
+    '''
+    TODO: this will always log again this same function when called
+
+    :param lines: how many relative lines ahead to log (negative for previous)
+    :param level: logger function with log level to log
+    :return: None, but logs stuff
+    '''
+    for i in range(1, lines+1):
+        level(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + i))
+
+# This is for jupyter notebook
+# from tqdm.notebook import tqdm_notebook
+# tqdm_notebook.pandas()
+# tqdm_func = tqdm.tqdm_notebook
+# This is for terminal
+from tqdm import tqdm
+tqdm.pandas(desc="Progress")
+tqdm_func = tqdm.tqdm
+
 # # Params
 
 from sqlalchemy import create_engine
 import sqlalchemy
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
 out_nodes_table_name = 'outnodes'
@@ -55,7 +99,7 @@ in_edges_table_name = 'inedges'
 cards_graphs_as_json_to_table = 'cards_graphs_as_json_temp'
 
 # # Create dataframe of cards
-
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 out_nodes = pd.read_sql_table(out_nodes_table_name, engine, columns=['card_id', 'card_name', 'type'])
 # out_edges = pd.read_sql_table(out_edges_table_name, engine)
 # in_nodes = pd.read_sql_table(in_nodes_table_name, engine)
@@ -682,6 +726,7 @@ ids_to_process = list(ids_to_process)
 first_tuple = tuple([[ids_to_process[0]]])
 list_of_lists_of_ids = list(chunks(ids_to_process[1:], int(len(ids_to_process[1:])/1000)))
 
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 functions.build_graphs_of_cards(first_tuple, method='replace')
 
 # +
@@ -695,11 +740,11 @@ for l in list_of_lists_of_ids:
 
 # +
 from multiprocessing import Pool
-import tqdm
 
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 if __name__ == '__main__':
     with Pool(4) as p:
-        r = list(tqdm.tqdm_notebook(p.imap(functions.build_graphs_of_cards, list_to_distribute), total=len(list_to_distribute)))
+        r = list(tqdm_func(p.imap(functions.build_graphs_of_cards, list_to_distribute), total=len(list_to_distribute)))
 #         p.map(functions.build_graphs_of_cards, list_to_distribute)
 # -
 

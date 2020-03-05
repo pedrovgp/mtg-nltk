@@ -37,18 +37,59 @@
 # incoming_edges_df = edges from the nodes above
 
 import json
+
+import networkx as nx
 import pandas as pd
 import re
 from collections import defaultdict
 from IPython.display import clear_output
 
-from tqdm.notebook import tqdm_notebook
-tqdm_notebook.pandas()
+import logging
+import inspect
+import linecache
+
+logPathFileName = './logs/' + '01.02.log'
+
+# create logger'
+logger = logging.getLogger('01.01')
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+# add the handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
+
+def log_next_line(lines=1, level=logger.info):
+    '''
+    TODO: this will always log again this same function when called
+
+    :param lines: how many relative lines ahead to log (negative for previous)
+    :param level: logger function with log level to log
+    :return: None, but logs stuff
+    '''
+    for i in range(1, lines+1):
+        level(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + i))
+
+# This is for jupyter notebook
+# from tqdm.notebook import tqdm_notebook
+# tqdm_notebook.pandas()
+# This is for terminal
+from tqdm import tqdm
+tqdm.pandas(desc="Progress")
 
 # + hideCode=false
 sets = json.load(open('./AllSets.json', 'rb'))
 # -
 
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_all_sets=[]
 for k, sett in sets.items():
     if (k in ['UGL', 'UST', 'UNH']) or (len(k)>3): # Ignore Unglued, Unstable and promotional things
@@ -79,6 +120,8 @@ ASPAS_TEXT = "ASPAS_TEXT"
 mains_col_names = ['name', 'manaCost', 'text_preworked', 'type', 'power', 'toughness',
                    'types', 'supertypes', 'subtypes']
 
+
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 from sqlalchemy import create_engine
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
 engine.connect()
@@ -126,7 +169,7 @@ def splitDataFrameList(df,target_column,separator=None):
 # -
 
 # # Create dataframe of cards
-
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards = cards_all
 cards_df = pd.DataFrame.from_dict(cards)
 cards_df = cards_df.drop_duplicates(subset=['name'])
@@ -146,7 +189,8 @@ def prework_text(card):
     t = str(card['text']).replace(card['name'], 'SELF')
     t = re.sub(pattern_parenthesis, '', t)
     return t
-    
+
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe())+1))
 cards_df['text_preworked'] = cards_df.apply(prework_text, axis=1)
 #cards_df['text_preworked']
 
@@ -170,6 +214,7 @@ for land_name, sym in lands:
 # -
 
 # Check whether card can add mana
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df['has_add'] = cards_df['text_preworked'].apply(
     lambda x: True
               if re.findall(r'add ', str(x), flags=re.IGNORECASE)
@@ -177,6 +222,7 @@ cards_df['has_add'] = cards_df['text_preworked'].apply(
 )
 
 sep = "ª"
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 if cards_df['text_preworked'].str.contains(sep).any():
     raise Exception("Bad separator symbol. It is contained in some text.")
 
@@ -230,7 +276,7 @@ cards_subtypes = set(cards_subtypes)
 #     r.raise_for_status()
 # comprules = r.text
 # -
-
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 with open('rules.txt', 'r', encoding='latin-1') as f:
     comprules = '\n'.join(f.readlines())
 
@@ -244,6 +290,7 @@ abilities.sort()
 
 # + code_folding=[]
 # Lets avoid creating a pop node
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts = pd.read_sql_table(cards_text_parts_table_name, engine)
 # -
 
@@ -261,6 +308,7 @@ cards_df_pop_parts = pd.read_sql_table(cards_text_parts_table_name, engine)
 import itertools
 
 patt = r'\{.*?\}'
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 t = cards_df_pop_parts['pop'].apply(lambda x: re.findall(patt, str(x))
                              if re.findall(patt, str(x)) else pd.np.nan)
 symbols_set=set(itertools.chain.from_iterable(t.dropna()))
@@ -279,8 +327,9 @@ symbols_explanation = {
                 'example_card': 'Glimmervoid Basin'},
 }
 weird_cards = []
+
 for item in weird_symbols:
-    weird = cards_df_sentences[cards_df_sentences['sentences'].str.contains(item)]
+    weird = cards_df_pop_parts[cards_df_pop_parts['part'].str.contains(item)]
     weird_cards.append(cards_df[cards_df['id'].isin(weird['card_id'])])
 if weird_symbols:
     weird_cards = pd.concat(weird_cards)
@@ -291,6 +340,8 @@ def get_increases(text_str, pat=r'([+-][\d+XxYx]{1,4}/[+-][\d+XxYx]{1,4})'):
     '''Given a text, extract a pattern and return the extraction or None'''
     res = re.findall(pat, text_str)
     return res
+
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 t = cards_df_pop_parts['part'].apply(get_increases)
 pr_increase_symbols = set(chain(*(t.values)))
 #pr_increase_symbols
@@ -321,6 +372,7 @@ except Exception:
 
 #MODEL = r'C:\Users\cs294662\Downloads\programas\spacy\data\en_core_web_md-2.0.0\en_core_web_md\en_core_web_md-2.0.0'
 #MODEL = r'C:\Users\cs294662\Downloads\programas\spacy\data\en_coref_lg-3.0.0\en_coref_lg\en_coref_lg-3.0.0'
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 nlp = spacy.load(MODEL)
 
 # ### Learning
@@ -359,6 +411,7 @@ for sym in pr_increase_symbols:
 # ## Create custom entity matcher
 
 # +
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 from spacy.matcher import PhraseMatcher, Matcher
 from spacy.tokens import Span
 
@@ -490,6 +543,7 @@ dict_label_terms = defaultdict(list)
 entity_to_kind_map = {}
 entity_key_to_hash_map = key_dependent_dict(entity_key_hash) # entity key: entity node hash (node_id)
 
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 for typ in cards_types:
     key = 'TYPE: ' + typ.lower()
     dict_label_terms[key].append([{'LOWER': t} for t in typ.lower().split()])
@@ -568,7 +622,8 @@ try:
 except Exception:
     nlp.add_pipe(entity_matcher)
 
-print(nlp.pipe_names)  # see all components in the pipeline
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(nlp.pipe_names)  # see all components in the pipeline
 
 
 # -
@@ -781,18 +836,18 @@ def draw_graph(G, filename='test.png'):
 pop_defining_cols = ['card_id', 'paragraph_order', 'pop_order', 'pop_type', 'pop']
 part_defining_cols = ['card_id', 'paragraph_order', 'pop_order', 'part_order', 'part_type_full', 'pop', 'part']
 
-cards_df_for_graph.head(2)
-
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 # Work on full cards_df_pop_parts (cards_df was probably filtered right at the beginning)
 unique_card_ids = cards_df_pop_parts['card_id'].unique()
 chunksize = 50
 import datetime
 start = datetime.datetime.now()
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 for i in range(unique_card_ids.shape[0]//chunksize):
     
-    if not ((i+1)*chunksize)%(10*chunksize):
+    if not ((i+1)*chunksize) % (10*chunksize):
         clear_output()
-    print('Working on {0} from {1}'.format((i+1)*chunksize, unique_card_ids.shape[0]))
+    logger.info('Working on {0} from {1}'.format((i+1)*chunksize, unique_card_ids.shape[0]))
     
     this_batch_ids = unique_card_ids[i*chunksize:(i+1)*chunksize]
     cards_df_for_graph = (cards_df_pop_parts[cards_df_pop_parts['card_id'].isin(this_batch_ids)]
@@ -800,11 +855,13 @@ for i in range(unique_card_ids.shape[0]//chunksize):
                          )
     cards_df_for_graph.loc[:, 'part_doc'] = cards_df_for_graph['part'].apply(lambda x: nlp(x.strip('.,')))
 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Parse for graph
     cards_df_for_graph = cards_df_for_graph.apply(parse_doc_to_list_of_dicts, args=(cards_df_pop_parts.columns,), axis=1)
     cards_df_for_graph = pd.concat(cards_df_for_graph.values, sort=False).reset_index(drop=True)
     #cards_df_for_graph.describe().transpose()
     
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Join with cards_df to get a few more details
     cdfg=cards_df_for_graph
     cdfg = cards_df_for_graph.merge(cards_df, left_on=['card_id'], right_index=True)
@@ -819,11 +876,13 @@ for i in range(unique_card_ids.shape[0]//chunksize):
     # attention: head is also a token
     # and set node and edge attributes (both dfs should contain the attributes)
 
-    # NODES ########################################## 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # NODES ##########################################
     nodes = {}
     nodes_cols = {}
     nodes_attr = {}
 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Token nodes
     nodes_cols['token'] = ['token_node', 'token_node_text', 'token_node_pos', 'token_node_tag',
            'token_head_node', 'token_head_dep',
@@ -840,6 +899,7 @@ for i in range(unique_card_ids.shape[0]//chunksize):
                                                             x['token_node_tag']]), axis=1)
     nodes_attr['token'] = [x for x in nodes['token'].columns if x not in ['node_id']]
 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Entity nodes
     nodes_cols['entity'] = ['entity_node', 'entity_node_entity','entity_node_ent_type', 'entity_node_desc']
     nodes['entity'] = (cdfg[nodes_cols['entity']]
@@ -852,6 +912,7 @@ for i in range(unique_card_ids.shape[0]//chunksize):
                                                             ]), axis=1)
     nodes_attr['entity'] = [x for x in nodes['entity'].columns if x not in ['node_id']]
 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Part nodes
     nodes_cols['part'] = ['part_node',
                           'part', 'part_order', 'part_type',
@@ -881,6 +942,7 @@ for i in range(unique_card_ids.shape[0]//chunksize):
     #                                               '-'.join([x['pop']]), axis=1)
     # nodes_attr['pop'] = [x for x in nodes['pop'].columns if x not in ['node_id']]
 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Card nodes
     nodes_cols['card'] =  ['card_id'] + mains_col_names
     nodes['card'] = cdfg[nodes_cols['card']]
@@ -892,12 +954,14 @@ for i in range(unique_card_ids.shape[0]//chunksize):
                                                   '-'.join([x['card_name']]), axis=1)
     nodes_attr['card'] = [x for x in nodes['card'].columns if x not in ['node_id']]
 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # EDGES #########################################
     card_as_start = True # Sets card as source and pop, part, token, entity as targets
     edges = {} # k->type, v-> dataframe
     edges_cols = {} # list
     edges_attr = {} # list
 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Token edges to head (and head to part)
     edges_cols['token_to_head_part'] = ['token_node', 'token_head_node', 'token_head_dep',
                            'part_order', 'part_type', 'card_id', 'paragraph_order', 
@@ -916,7 +980,8 @@ for i in range(unique_card_ids.shape[0]//chunksize):
     edges_attr['token_to_head_part'] = [x for x in edges['token_to_head_part'].columns
                                         if x not in ['source', 'target']]
 
-    # Entity edges to Token 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    # Entity edges to Token
     edges_cols['entity_to_token'] = ['token_node', 'entity_node']
     renamer = {'entity_node':'source', 'token_node':'target'}
     if card_as_start:
@@ -1013,8 +1078,8 @@ for i in range(unique_card_ids.shape[0]//chunksize):
     edges_attr['part_to_card'] = [x for x in edges['part_to_card'].columns
                                         if x not in ['source', 'target']]
 
+    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Build dfs
-    print('Building dfs')
     nodes_df = pd.concat(nodes.values(), sort=True).drop_duplicates(subset=['node_id'])
     nodes_df = nodes_df.dropna(subset=[x for x in nodes_df.columns if not x in ['node_id', 'label']], how='all')
     edges_df = pd.concat(edges.values(), sort=True).drop_duplicates(subset=['source', 'target'])
@@ -1028,13 +1093,13 @@ for i in range(unique_card_ids.shape[0]//chunksize):
     #nodes_df.to_pickle('./pickles/cards_outgoing_nodes_{0}.pkl'.format(i))
     #edges_df.to_pickle('./pickles/cards_outgoing_edges_{0}.pkl'.format(i))
     
-    print('Exporting to Postgres')
+    logger.info('Exporting to Postgres')
     method = 'append' if i else 'replace'
     nodes_df.set_index(['card_id', 'card_name', 'node_id', 'type']).to_sql(out_nodes_table_name, engine, if_exists=method)
     edges_df.set_index(['source', 'target', 'card_id', 'type']).to_sql(out_edges_table_name, engine, if_exists=method)
     
     time_decurred = datetime.datetime.now() - start
-    print('{0}'.format(time_decurred))
+    logger.info('{0}'.format(time_decurred))
 
 # ### Load individual pickles, join them and save an entire one
 
@@ -1073,6 +1138,7 @@ cdfg['card_id']=cdfg.index
 # types|colors to cards graph
 nodes_card_df = cdfg[['card_id', 'supertypes', 'types', 'subtypes', 'colors', 'manaCost']].copy()
 
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 # Generate df with card_id and entity_node_id refering to card's type, color, supertype, etc.
 res = []
 for col in nodes_card_df:
@@ -1104,6 +1170,7 @@ res['edge_type'] = 'entity_to_card'
 res.sample(5)
 # -
 
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cdfg = pd.concat([res, cdfg], sort=False).copy()
 # cdfg['name'] = cdfg['card_name']
 
@@ -1186,12 +1253,12 @@ edges_df = edges_df[
 #nodes_df.to_pickle('./pickles/cards_incoming_nodes.pkl')
 #edges_df.to_pickle('./pickles/cards_incoming_edges.pkl')
 
-print('Exporting to Postgres')
+logger.info('Exporting to Postgres')
 method = 'replace'# if i else 
 nodes_df.set_index(['card_id', 'card_name', 'node_id', 'type']).to_sql(in_nodes_table_name, engine, if_exists=method)
 edges_df.set_index(['source', 'target', 'relation', 'type']).to_sql(in_edges_table_name, engine, if_exists=method)
 
-print('Done exporting to Postgres')
+logger.info('Done exporting to Postgres')
 
 # + [markdown] heading_collapsed=true
 # # Build graph from the dfs (reference only)
