@@ -171,32 +171,32 @@ df = pd.read_sql_query(f'''SELECT * from {table_name} LIMIT 10''',
                            engine,
                            index_col='card_id')
 
-# + code_folding=[0] deletable=false editable=false hideCode=false run_control={"frozen": true}
+# +
 # # Testing
 card_id = df.index[0]
 G = json_graph.node_link_graph(json.loads(df.loc[card_id, 'outgoing']))
-card_nodes = [x for x,y in G.nodes(data=True) if y['type']=='card']
 draw_graph(G, 'test.png')
 
+card_nodes = [x for x,y in G.nodes(data=True) if y['type']=='card']
+entity_nodes = [x for x,y in G.nodes(data=True) if y['type']=='entity']
+assert len(card_nodes) == 1
 
-#
-# entity_nodes = [x for x,y in G.nodes(data=True) if y['type']=='entity']
-# assert len(card_nodes) == 1
-#
 # paths = []
 # for entity_node in entity_nodes:
 #     paths_list = nx.all_simple_paths(G, card_nodes[0], entity_node)
 #     a = [json_graph.node_link_data(G.subgraph(path)) for path in paths_list]
 #     paths.extend(a)
-#
 # json.dumps(paths)
-#
-# + deletable=false editable=false run_control={"frozen": true}
-# test = pd.read_sql_query('SELECT * from {0}'.
-#                        format(to_table_name),
-#                        engine,
-#                       index_col=['card_id', 'paragraph_order', 'pop_order', 'part_order', 'entity_node_entity'])
-# test
-# -
+
+paths = []
+for entity_node in entity_nodes:
+    paths_list = nx.all_simple_paths(G, card_nodes[0], entity_node)
+    a = [G.subgraph(path) for path in paths_list]
+    paths.extend(a)
+
+import functools
+H = functools.reduce(lambda a, b: nx.algorithms.operators.disjoint_union(a, b), paths)
+
+draw_graph(H, 'test2.png')
 
 logger.info(f'FINISHED: {__file__}')
