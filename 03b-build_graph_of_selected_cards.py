@@ -33,7 +33,8 @@
 # | card_id | paragraph_order | pop_order | part_order | entity | paragraph_type | pop_type | part_type | entity_pos | entity_head | main_verb_of_path |
 # | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 # | a2fh34 | 0 | 1 | 1 | TYPE: Instant | activated | effect | intensifier | pobj | for | destroy |
-
+import copy
+import itertools
 import json
 import pandas as pd
 import re
@@ -163,7 +164,6 @@ import datetime
 # +
 table_name = 'cards_graphs_as_json'
 to_table_name = 'cards_text_to_entity_simple_paths'
-chunk_size = 200
 
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 df = pd.read_sql_query(f'''SELECT * from {table_name} LIMIT 10''',
@@ -172,31 +172,101 @@ df = pd.read_sql_query(f'''SELECT * from {table_name} LIMIT 10''',
                            index_col='card_id')
 
 # +
-# # Testing
+# # Graph building
+
+# +
+# # One card
 card_id = df.index[0]
 G = json_graph.node_link_graph(json.loads(df.loc[card_id, 'outgoing']))
-draw_graph(G, 'test.png')
+draw_graph(G, 'pics/01-card.png')
 
 card_nodes = [x for x,y in G.nodes(data=True) if y['type']=='card']
 entity_nodes = [x for x,y in G.nodes(data=True) if y['type']=='entity']
 assert len(card_nodes) == 1
 
-# paths = []
-# for entity_node in entity_nodes:
-#     paths_list = nx.all_simple_paths(G, card_nodes[0], entity_node)
-#     a = [json_graph.node_link_data(G.subgraph(path)) for path in paths_list]
-#     paths.extend(a)
-# json.dumps(paths)
+# # One card simple paths with cleaned text
+# Normalize part nodes
+# The first nodes (part nodes)
+# should be replaced by only a node describing part and pop types
+# to simplify comparison between cards
+# Attr on this node should be stored in the edge
+card_nodes_ids = [x for x, y in G.nodes(data=True) if y['type'] == 'card']  # should be one
+part_nodes_ids = [x for x, y in G.nodes(data=True) if y['type'] == 'part']  #  => 0
+logger.info(card_nodes)
+assert len(card_nodes_ids) == 1
+card_node_id = card_nodes_ids[0]
+logger.info(part_nodes_ids)
+new_graph = nx.DiGraph(G)
+for part_node_id in part_nodes_ids:
+    new_graph.remove_edge(card_node_id, part_node_id)
+    old_attrs = copy.deepcopy(new_graph.nodes[part_node_id])
+    logger.info(old_attrs)
+    del old_attrs['label']
+    new_graph.add_edge(card_node_id, part_node_id, **old_attrs)
+    new_id = old_attrs['pop_type'] + '-' + old_attrs['part_type']
+    new_graph = nx.relabel.relabel_nodes(new_graph, mapping={part_node_id: new_id})
+    attrs = {new_id: {'pop_type': old_attrs['pop_type'],
+                      'part_type': old_attrs['part_type'],
+                      'label': new_id}}
+    nx.set_node_attributes(new_graph, attrs)
 
+H = new_graph
+
+draw_graph(H, 'pics/01-effects_paths.png')
+
+
+# # One card simple paths
 paths = []
 for entity_node in entity_nodes:
     paths_list = nx.all_simple_paths(G, card_nodes[0], entity_node)
     a = [G.subgraph(path) for path in paths_list]
     paths.extend(a)
 
-import functools
-H = functools.reduce(lambda a, b: nx.algorithms.operators.disjoint_union(a, b), paths)
+H = nx.algorithms.operators.compose_all(paths)
 
-draw_graph(H, 'test2.png')
+draw_graph(H, 'pics/02-simple-paths.png')
+
+
+# # One card simple paths with cleaned text
+# Normalize part nodes
+# For every path between card and entity, the first node
+# should be replaced by only a node describing part and pop types
+# to simplify comparison between cards
+# Attr on this node should be stored in the edge
+paths = []
+for entity_node in entity_nodes:
+    paths_list = nx.all_simple_paths(G, card_nodes[0], entity_node)
+    a = [G.subgraph(path) for path in paths_list]
+    a_ordered = [nx.topological_sort(g) for g in a]  # in each element node 0 is card, node 1 is text part
+    nodes_0_ids = [next(itertools.islice(g, 0, None)) for g in a_ordered]
+    nodes_1_ids = [next(itertools.islice(g, 0, None)) for g in a_ordered]
+    b = []
+    for i, graph in enumerate(a):
+        logger.debug(graph.nodes[nodes_0_ids[i]])
+        logger.debug(graph.nodes[nodes_1_ids[i]])
+        new_graph = nx.DiGraph(graph)
+        new_graph.remove_edge(nodes_0_ids[i], nodes_1_ids[i])
+        old_attrs = copy.deepcopy(new_graph.nodes[nodes_1_ids[i]])
+        del old_attrs['label']
+        logger.info(old_attrs)
+        new_graph.add_edge(nodes_0_ids[i], nodes_1_ids[i], **old_attrs)
+        new_id = old_attrs['pop_type'] + '-' + old_attrs['part_type']
+        new_graph = nx.relabel.relabel_nodes(new_graph, mapping={nodes_1_ids[i]: new_id})
+        attrs = {new_id: {'pop_type': old_attrs['pop_type'],
+                          'part_type': old_attrs['part_type'],
+                          'label': new_id}}
+        nx.set_node_attributes(new_graph, attrs)
+        b.append((new_graph))
+    paths.extend(b)
+
+H = nx.algorithms.operators.compose_all(paths)
+
+draw_graph(H, 'pics/02-normalized_simple_paths.png')
+
+
+
+
+
+
 
 logger.info(f'FINISHED: {__file__}')
