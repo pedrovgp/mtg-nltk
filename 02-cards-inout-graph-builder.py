@@ -743,8 +743,10 @@ from multiprocessing import Pool
 import tqdm
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 if __name__ == '__main__':
-    with Pool(4) as p:
-        r = list(tqdm_func(p.imap(functions.build_graphs_of_cards, list_to_distribute), total=len(list_to_distribute)))
+    for l in tqdm_func(list_to_distribute):
+        functions.build_graphs_of_cards(l)
+    # with Pool(4) as p:
+        # r = list(tqdm_func(p.imap(functions.build_graphs_of_cards, list_to_distribute), total=len(list_to_distribute)))
         # r = list(p.imap(functions.build_graphs_of_cards, list_to_distribute))
 #         p.map(functions.build_graphs_of_cards, list_to_distribute)
 # -
