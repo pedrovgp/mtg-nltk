@@ -223,9 +223,9 @@ import datetime
 # ### Get paths from cards_text to entities (simple paths from text -> entities)
 
 # + deletable=false editable=false run_control={"frozen": true}
-# with engine.connect() as con:
-#     con.execute('''CREATE TABLE public.cards_graphs_as_json AS
-# (SELECT * FROM public.cards_graphs_as_json_temp)''')
+with engine.connect() as con:
+    con.execute('''CREATE TABLE public.cards_graphs_as_json AS
+(SELECT * FROM public.cards_graphs_as_json_temp)''')
 
 # +
 table_name = 'cards_graphs_as_json'
