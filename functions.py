@@ -11,23 +11,6 @@ import linecache
 
 logPathFileName = './logs/' + 'functions.log'
 
-# create logger'
-logger = logging.getLogger('functions')
-logger.setLevel(logging.DEBUG)
-# create file handler which logs even debug messages
-fh = logging.FileHandler(f"{logPathFileName}", mode='w')
-fh.setLevel(logging.DEBUG)
-# create console handler with a higher log level
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-# create formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-# add the handlers to the logger
-logger.addHandler(fh)
-logger.addHandler(ch)
-
 # This is for terminal
 # from tqdm import tqdm
 # tqdm.pandas(desc="Progress")
@@ -38,6 +21,24 @@ from sqlalchemy import create_engine
 write_every = 200 # cards
 
 def build_graphs_of_cards(obj_tuple, method='append'):
+
+    # create logger'
+    logger = logging.getLogger('functions')
+    logger.setLevel(logging.DEBUG)
+    # create file handler which logs even debug messages
+    fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+    fh.setLevel(logging.DEBUG)
+    # create console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    # create formatter and add it to the handlers
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+    # add the handlers to the logger
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
     list_with_many_ids, = obj_tuple
     ids_to_process = list_with_many_ids
     f_id = ids_to_process[0]
