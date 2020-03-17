@@ -36,7 +36,10 @@
 import copy
 import itertools
 import json
+import textwrap
+
 import pandas as pd
+import numpy as np
 import re
 from collections import defaultdict
 from IPython.display import clear_output
@@ -105,37 +108,40 @@ entities_colors = {
     'SUPERTYPE': '#8D0BCA',
     'ABILITY': '#cc3300',
     'COLOR': '#666633',
-    'STEP': '#E0E0F8'
+    'STEP': '#E0E0F8',
+    'PT': '#C10AC1',
+    'OBJECT': '#F5A40C',
 }
 
-def draw_graph(G, filename='test.png'):
-    pdot = nx.drawing.nx_pydot.to_pydot(G)
+def relayout(pygraph):
+    """Given a graph (pygraphviz), redesign its layout"""
+    return pygraph
 
-    for i, node in enumerate(pdot.get_nodes()):
+    for i, node in enumerate(pygraph.get_nodes()):
         attrs = node.get_attributes()
         node.set_label(str(attrs.get('label', 'none')))
-    #     node.set_fontcolor(colors[random.randrange(len(colors))])
-        entity_node_ent_type = attrs.get('entity_node_ent_type', pd.np.nan)
+        #     node.set_fontcolor(colors[random.randrange(len(colors))])
+        entity_node_ent_type = attrs.get('entity_node_ent_type', np.nan)
         if not pd.isnull(entity_node_ent_type):
             color = entities_colors[entity_node_ent_type.strip('"')]
             node.set_fillcolor(color)
             node.set_color(color)
             node.set_shape('hexagon')
-            #node.set_colorscheme()
+            # node.set_colorscheme()
             node.set_style('filled')
-        
+
         node_type = attrs.get('type', None)
         if node_type == '"card"':
             color = '#999966'
             node.set_fillcolor(color)
-#             node.set_color(color)
+            #             node.set_color(color)
             node.set_shape('star')
-            #node.set_colorscheme()
+            # node.set_colorscheme()
             node.set_style('filled')
-    #     
-        #pass
+    #
+    # pass
 
-    for i, edge in enumerate(pdot.get_edges()):
+    for i, edge in enumerate(pygraph.get_edges()):
         att = edge.get_attributes()
         att = att.get('label', 'NO-LABEL')
         edge.set_label(att)
@@ -143,8 +149,18 @@ def draw_graph(G, filename='test.png'):
     #     edge.set_style(styles[random.randrange(len(styles))])
     #     edge.set_color(colors[random.randrange(len(colors))])
 
+    return pygraph
+
+def draw_graph(G, filename='test.png'):
+    # pdot = nx.drawing.nx_pydot.to_pydot(G)
+    pygv = nx.drawing.nx_agraph.to_agraph(G)  # pygraphviz
+
+    pygv = relayout(pygv)
+
     png_path = filename
-    pdot.write_png(png_path)
+    # pdot.write_png(png_path)
+    pygv.layout(prog='dot')
+    pygv.draw(png_path)
 
     from IPython.display import Image
     return Image(png_path)
@@ -166,7 +182,17 @@ table_name = 'cards_graphs_as_json'
 to_table_name = 'cards_text_to_entity_simple_paths'
 
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
-df = pd.read_sql_query(f'''SELECT * from {table_name} LIMIT 10''',
+df = pd.read_sql_query(f'''SELECT * from {table_name} ORDER BY random() LIMIT 10''',
+# WHERE card_id IN ({','.join(["'"+x+"'" for x in chunks[0]['card_id']])})''',
+                           engine,
+                           index_col='card_id')
+
+df2 = pd.read_sql_query(f'''
+SELECT * from {table_name} as a
+JOIN cards as cards
+ON cards.id = a.card_id
+WHERE cards.name IN ('Terror', 'Soltari Visionary')
+LIMIT 10''',
 # WHERE card_id IN ({','.join(["'"+x+"'" for x in chunks[0]['card_id']])})''',
                            engine,
                            index_col='card_id')
@@ -179,6 +205,15 @@ df = pd.read_sql_query(f'''SELECT * from {table_name} LIMIT 10''',
 card_id = df.index[0]
 G = json_graph.node_link_graph(json.loads(df.loc[card_id, 'outgoing']))
 draw_graph(G, 'pics/01-card.png')
+
+# # Two cards
+card1_id, card2_id = df2.index[0], df2.index[1]
+g1out = json_graph.node_link_graph(json.loads(df2.loc[card1_id, 'outgoing']))
+g1in = json_graph.node_link_graph(json.loads(df2.loc[card1_id, 'incoming']))
+draw_graph(g1out, 'pics/03a-card1out.png')
+g2out = json_graph.node_link_graph(json.loads(df2.loc[card2_id, 'outgoing']))
+g2in = json_graph.node_link_graph(json.loads(df2.loc[card2_id, 'incoming']))
+draw_graph(g2in, 'pics/03a-card2in.png')
 
 card_nodes = [x for x,y in G.nodes(data=True) if y['type']=='card']
 entity_nodes = [x for x,y in G.nodes(data=True) if y['type']=='entity']
@@ -263,10 +298,51 @@ H = nx.algorithms.operators.compose_all(paths)
 
 draw_graph(H, 'pics/02-normalized_simple_paths.png')
 
+# # Two cards, two nodes, edge with all info
+# For every path between card1 and card2, all intermediary nodes
+# should be replaced by only an edge encoding all (meaninfull) info
+def collapse_single_path(digraph, path):
+    '''
+
+    :param digraph: networkx.DiGraph
+    :param path: list of nodes (simple path of digraph)
+    :return: networkx.DiGraph with only first and last nodes and one edge between them
+
+    The original graph is an attribute of the edge
+    '''
+    digraph_ordered = digraph.subgraph(path)  # in each element node 0 is card, node 1 is text part
+    res = nx.DiGraph()
+    # Add first and last nodes with their respective attributes
+    res.add_node(path[0], **digraph.nodes[path[0]])
+    res.add_node(path[-1], **digraph.nodes[path[-1]])
+    # edge_attr = {'full_original_path_graph': digraph}
+    edge_attr = {}
+    labels = []
+
+    for i, node in enumerate(path):
+        label = ''
+        if not i:
+            continue
+        e_at = digraph_ordered.edges[path[i - 1], node]  # dict: attributes of each edge in order
+        edge_attr[f'edge-{i}'] = e_at
+        label += e_at.get('part_type_full', None) or e_at.get('label') + ':'
+        if dict(digraph_ordered[node]):
+            n_at = dict(digraph_ordered.nodes[node])   # dict: attributes of each node in order
+            edge_attr[f'node-{i}'] = dict(digraph_ordered.nodes[node])
+            label += n_at.get('label')
+
+        labels.append(label)
+
+    res.add_edge(path[0], path[-1], **edge_attr, label=''.join(textwrap.wrap(f'{" | ".join(labels)}')))
+
+    return res
 
 
+G = nx.algorithms.operators.compose_all([g1out, g2in])
+draw_graph(G, 'pics/03a-g1out-g2in.png')
+paths_list = list(nx.all_simple_paths(G, card1_id, card2_id))
+H = nx.algorithms.operators.compose_all([collapse_single_path(G, path) for path in paths_list])
 
-
-
+draw_graph(H, 'pics/03-2-cards-2-nodes.png')
 
 logger.info(f'FINISHED: {__file__}')
