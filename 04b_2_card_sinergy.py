@@ -13,7 +13,9 @@
 #     name: conda-env-mtg-py
 # ---
 
-# # Build graph for each path from a cards text to entities
+# # Calculate sinergy measures
+# References:
+# http://wiki.edhrec.com/wiki/EDHREC
 
 # The idea here is to
 #
@@ -95,6 +97,14 @@ import sqlalchemy
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
+
+# Let's
+# 1. get two cards
+# 2. build card1 > card2 graph
+# 3. Build simple paths from card1 to card2
+# 4. Build edge from card1 to card2 encoding simple path
+# 5. Remove all nodes except for the card nodes
+# Why: we should get a two cards graph with an edge encoding every meaningful info to assess sinergy
 
 
 
