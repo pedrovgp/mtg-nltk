@@ -115,55 +115,36 @@ entities_colors = {
 
 def relayout(pygraph):
     """Given a graph (pygraphviz), redesign its layout"""
-    return pygraph
 
-    for i, node in enumerate(pygraph.get_nodes()):
-        attrs = node.get_attributes()
-        node.set_label(str(attrs.get('label', 'none')))
-        #     node.set_fontcolor(colors[random.randrange(len(colors))])
-        entity_node_ent_type = attrs.get('entity_node_ent_type', np.nan)
-        if not pd.isnull(entity_node_ent_type):
+    for i, node in enumerate(pygraph.nodes()):
+        attrs = node.attr
+        entity_node_ent_type = attrs.get('entity_node_ent_type', None)
+        if (not pd.isnull(entity_node_ent_type)) and entity_node_ent_type:
             color = entities_colors[entity_node_ent_type.strip('"')]
-            node.set_fillcolor(color)
-            node.set_color(color)
-            node.set_shape('hexagon')
-            # node.set_colorscheme()
-            node.set_style('filled')
+            node.attr['fillcolor'] = color
+            node.attr['color'] = color
+            node.attr['shape'] = 'hexagon'
+            node.attr['style'] = 'filled'
 
         node_type = attrs.get('type', None)
         if node_type == '"card"':
             color = '#999966'
-            node.set_fillcolor(color)
-            #             node.set_color(color)
-            node.set_shape('star')
-            # node.set_colorscheme()
-            node.set_style('filled')
-    #
-    # pass
-
-    for i, edge in enumerate(pygraph.get_edges()):
-        att = edge.get_attributes()
-        att = att.get('label', 'NO-LABEL')
-        edge.set_label(att)
-    #     edge.set_fontcolor(colors[random.randrange(len(colors))])
-    #     edge.set_style(styles[random.randrange(len(styles))])
-    #     edge.set_color(colors[random.randrange(len(colors))])
+            node.attr['fillcolor'] = color
+            node.attr['shape'] = 'star'
+            node.attr['style'] = 'filled'
 
     return pygraph
 
 def draw_graph(G, filename='test.png'):
-    # pdot = nx.drawing.nx_pydot.to_pydot(G)
     pygv = nx.drawing.nx_agraph.to_agraph(G)  # pygraphviz
 
     pygv = relayout(pygv)
 
-    png_path = filename
-    # pdot.write_png(png_path)
     pygv.layout(prog='dot')
-    pygv.draw(png_path)
+    pygv.draw(filename)
 
-    from IPython.display import Image
-    return Image(png_path)
+    # from IPython.display import Image
+    # return Image(filename)
 # -
 
 # # Build graph with Networkx
@@ -181,21 +162,32 @@ import datetime
 table_name = 'cards_graphs_as_json'
 to_table_name = 'cards_text_to_entity_simple_paths'
 
+CARD_LIMIT = 100
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
-df = pd.read_sql_query(f'''SELECT * from {table_name} ORDER BY random() LIMIT 10''',
+df = pd.read_sql_query(f'''SELECT * from {table_name} ORDER BY random() LIMIT {CARD_LIMIT}''',
 # WHERE card_id IN ({','.join(["'"+x+"'" for x in chunks[0]['card_id']])})''',
                            engine,
                            index_col='card_id')
 
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 df2 = pd.read_sql_query(f'''
 SELECT * from {table_name} as a
 JOIN cards as cards
 ON cards.id = a.card_id
 WHERE cards.name IN ('Terror', 'Soltari Visionary')
 LIMIT 10''',
-# WHERE card_id IN ({','.join(["'"+x+"'" for x in chunks[0]['card_id']])})''',
-                           engine,
-                           index_col='card_id')
+   engine,
+   index_col='card_id')
+
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+df_tempest = pd.read_sql_query(f'''
+SELECT * from {table_name} as a
+JOIN cards as cards
+ON cards.id = a.card_id
+WHERE cards.set IN ('TMP')''',
+   engine,
+   index_col='card_id')
+logger.info(f'df_tempest shape: {df_tempest.shape}')
 
 # +
 # # Graph building
@@ -205,6 +197,26 @@ LIMIT 10''',
 card_id = df.index[0]
 G = json_graph.node_link_graph(json.loads(df.loc[card_id, 'outgoing']))
 draw_graph(G, 'pics/01-card.png')
+
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+# # One card - 100 random cards
+# for idx in range(CARD_LIMIT):
+#     cid = df.index[idx]
+#     temp = json_graph.node_link_graph(json.loads(df.loc[cid, 'outgoing']))
+#     card_node_attr = [y for x, y in temp.nodes(data=True) if y['type'] == 'card']
+#     name = card_node_attr[0]['card_name']
+#     draw_graph(temp, f'pics/1_card/{name}.png')
+
+# +
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+# # One card Tempest
+def draw_graphs_from_df(row):
+    temp = json_graph.node_link_graph(json.loads(row['outgoing']))
+    card_node_attr = [y for x, y in temp.nodes(data=True) if y['type'] == 'card']
+    name = card_node_attr[0]['card_name']
+    draw_graph(temp, f'pics/tempest/{name}.png')
+
+df_tempest.apply(draw_graphs_from_df, axis=1)
 
 # # Two cards
 card1_id, card2_id = df2.index[0], df2.index[1]
