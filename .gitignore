@@ -1,3 +1,6 @@
 .ipynb_*
 deck-analysis.pbix
 0*.ipynb
+data/*
+pics/*
+logs/*
