@@ -224,8 +224,12 @@ import datetime
 
 # + deletable=false editable=false run_control={"frozen": true}
 with engine.connect() as con:
+    try:
+        con.execute('''DROP TABLE public.cards_graphs_as_json ''')
+    except Exception as e:
+        pass
     con.execute('''CREATE TABLE public.cards_graphs_as_json AS
-(SELECT * FROM public.cards_graphs_as_json_temp)''')
+                   (SELECT * FROM public.cards_graphs_as_json_temp)''')
 
 # +
 table_name = 'cards_graphs_as_json'
