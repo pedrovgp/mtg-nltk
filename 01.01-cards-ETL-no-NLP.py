@@ -93,6 +93,11 @@ for k, sett in sets.items():
         continue
     for card in sett['cards']:
         card['set'] = k
+        card['set_code'] = sets[k]['code']
+        card['set_releaseDate'] = sets[k]['releaseDate']
+        card['set_baseSetSize'] = sets[k]['baseSetSize']
+        card['set_totalSetSize'] = sets[k]['totalSetSize']
+        card['set_name'] = sets[k]['name']
     cards_all.extend(sett['cards'])
 
 # # Params
@@ -157,6 +162,8 @@ cards_df = pd.DataFrame.from_dict(cards)
 cards_df = cards_df.drop_duplicates(subset=['name'])
 cards_df = cards_df.drop(columns=['foreignData', 'legalities', 'prices', 'purchaseUrls',
                                   'rulings', 'leadershipSkills'], errors='ignore')
+cards_df['set_releaseDate'] = pd.to_datetime(cards_df['set_releaseDate'], format='%Y-%m-%d')
+
 # cards_df = cards_df.sample(200)
 # cards_df = cards_df[cards_df['name'].isin(all_cards_names_in_decks)]
 
