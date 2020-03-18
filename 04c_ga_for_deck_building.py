@@ -109,6 +109,10 @@ engine.connect()
 #    You should have received a copy of the GNU Lesser General Public
 #    License along with DEAP. If not, see <http://www.gnu.org/licenses/>.
 
+# References:
+# https://deap.readthedocs.io/en/master/examples/ga_knapsack.html
+# https://en.wikipedia.org/wiki/Knapsack_problem
+
 import random
 
 import numpy
@@ -131,10 +135,13 @@ random.seed(64)
 # a (weight, value) 2-uple.
 items = {}
 # Create random items and store them in the items' dictionary.
+# An item has a (weight, value) attribute
 for i in range(NBR_ITEMS):
     items[i] = (random.randint(1, 10), random.uniform(0, 100))
 
+# Fitness is -1 for weight and +1 for value
 creator.create("Fitness", base.Fitness, weights=(-1.0, 1.0))
+# Individual is a backpack (a set of items)
 creator.create("Individual", set, fitness=creator.Fitness)
 
 toolbox = base.Toolbox()
