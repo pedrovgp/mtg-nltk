@@ -402,10 +402,11 @@ symbols_set_valid = symbols_set.difference(set(worth_ignoring))
 symbols_set_mana = set()
 symbols_set_action = set()
 for sym in symbols_set_valid:
-    if not sym in ['{T}', '{Q}']:
+    if not sym in ['{T}', '{Q}', 'mana']:
         symbols_set_mana.add(sym)
         #nlp.tokenizer.add_special_case(sym, [{ORTH: sym, POS: NOUN, TAG:nn}])
-        nlp.tokenizer.add_special_case(sym, [{ORTH: sym, POS: NOUN}])
+        nlp.tokenizer.add_special_case(sym.upper(), [{ORTH: sym, POS: NOUN}])
+        nlp.tokenizer.add_special_case(sym.lower(), [{ORTH: sym, POS: NOUN}])
     else:
         symbols_set_action.add(sym)
         nlp.tokenizer.add_special_case(sym, [{ORTH: sym, POS: VERB, TAG:'VB'}])
@@ -498,7 +499,14 @@ class EntityMatcher(object):
 # +
 zones = ['graveyard', 'play', 'library', 'hand', 'battlefield', 'exile', 'stack']
 players = ['opponent', 'you', 'controller', 'owner', 'player']
-steps = ['upkeep', 'draw step', 'end step', 'cleanup step', 'main phase', 'main phases']
+steps = ['upkeep', 'draw step', 'end step', 'cleanup step', 'main phase', 'main phases', 'combat damage step']
+# actions = ['draw', 'discard'
+#            'gain control', 'exchange control',
+#            'deals', 'prevent',
+#            # TODO gain life, gains
+#            'destroy', 'counter', 'sacrifice',
+#            'put'
+#            ]
 
 entities = {}
 entities['zones'] = zones
@@ -507,6 +515,7 @@ entities['steps'] = steps
 entities['types'] = cards_types
 entities['subtypes'] = cards_subtypes
 entities['supertypes'] = cards_supertypes
+# entities['actions'] = actions
 
 # + code_folding=[]
 # Create hashable dict
@@ -618,11 +627,29 @@ for sym in pr_increase_symbols:
     entity_to_kind_map[key] = 'PT'
     entity_key_to_hash_map[key] = HashableDict({'entity': key}).hexdigext()
     
-for sym in ['counter']:
+for sym in ['counter', 'card']:
     key = 'OBJECT: '+sym.lower()
     dict_label_terms[key].append([{'LOWER': t, 'POS': NOUN} for t in sym.split()])
     entity_to_kind_map[key] = 'OBJECT'
     entity_key_to_hash_map[key] = HashableDict({'entity': key}).hexdigext()
+
+for sym in ['spell', 'hability', 'land']:
+    key = 'NATURE: '+sym.lower()
+    dict_label_terms[key].append([{'LOWER': t, 'POS': NOUN} for t in sym.split()])
+    entity_to_kind_map[key] = 'NATURE'
+    entity_key_to_hash_map[key] = HashableDict({'entity': key}).hexdigext()
+
+for sym in ['self']:
+    key = 'SELF: '+sym.lower()
+    dict_label_terms[key].append([{'LOWER': t, 'POS': NOUN} for t in sym.split()])
+    entity_to_kind_map[key] = 'SELF'
+    entity_key_to_hash_map[key] = HashableDict({'entity': key}).hexdigext()
+
+# actions
+key = 'VERBAL_ACTION: '
+dict_label_terms[key].append([{'POS': VERB}])
+entity_to_kind_map[key] = 'VERBAL_ACTION'
+entity_key_to_hash_map[key] = HashableDict({'entity': key}).hexdigext()
 
 entity_matcher = EntityMatcher(nlp, dict_label_terms)
 try:
