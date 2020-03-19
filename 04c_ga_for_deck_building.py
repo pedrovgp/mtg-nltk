@@ -122,9 +122,12 @@ from deap import base
 from deap import creator
 from deap import tools
 
+# TODO initial number of cards in the deck
 IND_INIT_SIZE = 5
+# TODO max items should be the max deck size (in cards)
 MAX_ITEM = 50
 MAX_WEIGHT = 50
+# TODO NBR_ITEMS would be the whole pool of cards we can build our deck from
 NBR_ITEMS = 20
 
 # To assure reproductibility, the RNG seed is set prior to the items
@@ -136,36 +139,48 @@ random.seed(64)
 items = {}
 # Create random items and store them in the items' dictionary.
 # An item has a (weight, value) attribute
+# TODO NBR_ITEMS could be a list with 4 copies of all card in a collection
 for i in range(NBR_ITEMS):
+    # TODO 1 item would be one card, with all its attributes for later weighting
     items[i] = (random.randint(1, 10), random.uniform(0, 100))
 
 # Fitness is -1 for weight and +1 for value
-creator.create("Fitness", base.Fitness, weights=(-1.0, 1.0))
-# Individual is a backpack (a set of items)
+# TODO adjust weights to correspond to item len
+creator.create("Fitness", base.Fitness, weights=(1.0, 0.001))
+# Individual is a backpack/deck (a set of items/cards)
+# TODO this stays the same (set is ok if copies of cards get different ids.
+# If not, we need list so that a card can appear more than once in a deck)
 creator.create("Individual", set, fitness=creator.Fitness)
 
 toolbox = base.Toolbox()
 
 # Attribute generator
+# TODO this randomly generates items/cards
+# TODO need a way to not pull same card more than once
 toolbox.register("attr_item", random.randrange, NBR_ITEMS)
 
 # Structure initializers
+# TODO this repeats card pulling until we get a deck
 toolbox.register("individual", tools.initRepeat, creator.Individual,
                  toolbox.attr_item, IND_INIT_SIZE)
+# TODO this creates a population of decks to be selected on best fitness
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-
+# TODO this evaluation function should carry our criteria for a good deck (start simple with P/T)
+# TODO it should return something of the same length as weights in Fitness above
 def evalKnapsack(individual):
     weight = 0.0
     value = 0.0
+    v_per_w = 0.0
     for item in individual:
         weight += items[item][0]
         value += items[item][1]
+        v_per_w = value/weight
     if len(individual) > MAX_ITEM or weight > MAX_WEIGHT:
-        return 10000, 0  # Ensure overweighted bags are dominated
-    return weight, value
+        return -10000, 0  # 10000, 0  # Ensure overweighted bags are dominated
+    return v_per_w, 0  # weight, value
 
-
+# TODO crossover strategy requires deep thought
 def cxSet(ind1, ind2):
     """Apply a crossover operation on input sets. The first child is the
     intersection of the two sets, the second child is the difference of the
@@ -176,7 +191,7 @@ def cxSet(ind1, ind2):
     ind2 ^= temp  # Symmetric Difference (inplace)
     return ind1, ind2
 
-
+# TODO mutation strategy requires deep thought
 def mutSet(individual):
     """Mutation that pops or add an element."""
     if random.random() < 0.5:
