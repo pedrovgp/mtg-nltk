@@ -1,18 +1,3 @@
-# ---
-# jupyter:
-#   jupytext:
-#     formats: ipynb,py:light
-#     text_representation:
-#       extension: .py
-#       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.3.4
-#   kernelspec:
-#     display_name: Python [conda env:mtg]
-#     language: python
-#     name: conda-env-mtg-py
-# ---
-
 # # Generate a deck from a given set of cards
 
 # Partly following the idea outlined here:
@@ -35,35 +20,33 @@
 # **DESIRED RESULT**:
 # Given a set of cards, a deck list with cards within that set.
 
-import copy
-import itertools
-import json
 import pandas as pd
-import re
-from collections import defaultdict
-from IPython.display import clear_output
-import networkx as nx
-import re
-from networkx.readwrite import json_graph
-import json
-import datetime
+import numpy as np
+
+import streamlit as st
 
 import logging
 import inspect
 import linecache
 import os
 
+st.header('MTG: deck geration')
+st.write('''Welcome! This app uses genetic algorithms to generate MTG decks based on your given
+optimization criteria. It generates X decks, evaluates and uses the best from X decks to 
+generate a next generation of X decks. You can choose how many generations you want to evolve your deck.
+''')
+
 try:
-    __file__
+    if __file__: pass
 except NameError:
     # for running in ipython
-    fname = '04a_2_card_sinergy.py.py'
+    fname = '04c_ga_for_deck_building.py'
     __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = './logs/' + '04a.log'
+logPathFileName = './logs/' + '04c.log'
 
 # create logger'
-logger = logging.getLogger('04a')
+logger = logging.getLogger('04c')
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode='w')
@@ -94,6 +77,83 @@ engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
+INITIAL_SET = 'TMP'
+
+st.write(f'At first, we are considering only {INITIAL_SET} as a collection to build the deck from.')
+
+df_tempest = pd.read_sql_query(f'''
+   SELECT * 
+   FROM cards
+   WHERE cards.set IN ('{INITIAL_SET}')''',
+   engine,
+   # index_col='id'
+)
+df_tempest = pd.concat([df_tempest for x in range(4)]).reset_index(drop=True)
+logger.info(f'df_tempest shape: {df_tempest.shape}')
+
+def compute_deck_stats(deck_df):
+
+    st.write(f'Final deck has {deck_df.shape[0]} cards')
+
+    st.write('Mana curve')
+    cmc = deck_df.pivot_table(
+        index=['cmc'], values=['id'], aggfunc=lambda x: x.count()
+    ).transpose()
+    logger.info(cmc)
+    st.write(cmc)
+
+    st.write('Cards by color')
+    colors = deck_df.pivot_table(
+        index=['colors'], values=['id'], aggfunc=lambda x: x.count()
+    ).transpose()
+    logger.info(colors)
+    st.write(colors)
+
+    st.write('Cards that add mana')
+    has_add = deck_df.pivot_table(
+        index=['has_add'], values=['id'], aggfunc=lambda x: x.count()
+    ).transpose()
+    logger.info(has_add)
+    st.write(has_add)
+
+    st.write('Cards by type')
+    types = deck_df.pivot_table(
+        index=['types'], values=['id'], aggfunc=lambda x: x.count()
+    ).transpose()
+    logger.info(types)
+    st.write(types)
+
+    st.write('Power and toughness by type')
+    pt_by_type = deck_df.pivot_table(
+        index=['types'], values=['power_num', 'toughness_num'], aggfunc=np.sum
+    )
+    logger.info(pt_by_type)
+    st.write(pt_by_type)
+
+    st.write('Power and toughness by color')
+    pt_by_color = deck_df.pivot_table(
+        index=['colors'], values=['power_num', 'toughness_num'], aggfunc=np.sum
+    )
+    logger.info(pt_by_color)
+    st.write(pt_by_color)
+
+    st.write('Full deck list')
+    deck = (
+        deck_df.pivot_table(
+            index=['name'], values=['id'], aggfunc=lambda x: x.count()
+        )
+        .merge(
+            deck_df.pivot_table(
+                index=['name'], values=['power_num', 'toughness_num'], aggfunc=np.sum
+            ), left_index=True, right_index=True
+
+        )
+    )
+
+    logger.info(deck)
+    st.write(deck)
+
+
 #    This file is part of DEAP.
 #
 #    DEAP is free software: you can redistribute it and/or modify
@@ -115,20 +175,20 @@ engine.connect()
 
 import random
 
-import numpy
-
 from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
 
 # TODO initial number of cards in the deck
-IND_INIT_SIZE = 5
+IND_INIT_SIZE = 36
 # TODO max items should be the max deck size (in cards)
-MAX_ITEM = 50
-MAX_WEIGHT = 50
+MIN_ITEM, MAX_ITEM = st.sidebar.slider(
+    'Minimum and maximum cards for deck',
+    min_value=30, max_value=40, value=(34, 36)
+) or (34, 36)
 # TODO NBR_ITEMS would be the whole pool of cards we can build our deck from
-NBR_ITEMS = 20
+NBR_ITEMS = df_tempest.shape[0]
 
 # To assure reproductibility, the RNG seed is set prior to the items
 # dict initialization. It is also seeded in main().
@@ -139,18 +199,28 @@ random.seed(64)
 items = {}
 # Create random items and store them in the items' dictionary.
 # An item has a (weight, value) attribute
-# TODO NBR_ITEMS could be a list with 4 copies of all card in a collection
+# TODO NBR_ITEMS should be all cards of initial set/collection
 for i in range(NBR_ITEMS):
     # TODO 1 item would be one card, with all its attributes for later weighting
-    items[i] = (random.randint(1, 10), random.uniform(0, 100))
+    items[i] = df_tempest.iloc[i]
+    # items[i] = (random.randint(1, 10), random.uniform(0, 100))  # old
 
 # Fitness is -1 for weight and +1 for value
 # TODO adjust weights to correspond to item len
-creator.create("Fitness", base.Fitness, weights=(1.0, 0.001))
+# lets start only by maximizing P/T, both weighting 1
+POWER_WEIGHT = st.sidebar.number_input(
+    'How much would you like Power to weight in optimization?',
+    min_value=1.0, max_value=10.0, value=1.0
+)
+TOUGH_WEIGHT = st.sidebar.number_input(
+    'How much would you like Thoughness to weight in optimization?',
+    min_value=1.0, max_value=10.0, value=1.0
+)
+creator.create("Fitness", base.Fitness, weights=(POWER_WEIGHT, TOUGH_WEIGHT))
 # Individual is a backpack/deck (a set of items/cards)
 # TODO this stays the same (set is ok if copies of cards get different ids.
 # If not, we need list so that a card can appear more than once in a deck)
-creator.create("Individual", set, fitness=creator.Fitness)
+creator.create("Deck", set, fitness=creator.Fitness)
 
 toolbox = base.Toolbox()
 
@@ -161,24 +231,20 @@ toolbox.register("attr_item", random.randrange, NBR_ITEMS)
 
 # Structure initializers
 # TODO this repeats card pulling until we get a deck
-toolbox.register("individual", tools.initRepeat, creator.Individual,
+toolbox.register("deck", tools.initRepeat, creator.Deck,
                  toolbox.attr_item, IND_INIT_SIZE)
 # TODO this creates a population of decks to be selected on best fitness
-toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+toolbox.register("population", tools.initRepeat, list, toolbox.deck)
 
 # TODO this evaluation function should carry our criteria for a good deck (start simple with P/T)
 # TODO it should return something of the same length as weights in Fitness above
-def evalKnapsack(individual):
-    weight = 0.0
-    value = 0.0
-    v_per_w = 0.0
-    for item in individual:
-        weight += items[item][0]
-        value += items[item][1]
-        v_per_w = value/weight
-    if len(individual) > MAX_ITEM or weight > MAX_WEIGHT:
-        return -10000, 0  # 10000, 0  # Ensure overweighted bags are dominated
-    return v_per_w, 0  # weight, value
+def evalKnapsack(deck):
+    d = df_tempest[df_tempest.index.isin(deck)]
+    power = d['power_num'].sum()
+    toughness = d['toughness_num'].sum()
+    if len(deck) > MAX_ITEM or len(deck) < MIN_ITEM:
+        return -10000, -10000  # 10000, 0  # Ensure overweighted bags are dominated
+    return power, toughness  # weight, value
 
 # TODO crossover strategy requires deep thought
 def cxSet(ind1, ind2):
@@ -192,14 +258,18 @@ def cxSet(ind1, ind2):
     return ind1, ind2
 
 # TODO mutation strategy requires deep thought
-def mutSet(individual):
+def mutSet(deck):
     """Mutation that pops or add an element."""
     if random.random() < 0.5:
-        if len(individual) > 0:  # We cannot pop from an empty set
-            individual.remove(random.choice(sorted(tuple(individual))))
+        if len(deck) > 0:  # We cannot pop from an empty set
+            deck.remove(random.choice(sorted(tuple(deck))))
     else:
-        individual.add(random.randrange(NBR_ITEMS))
-    return individual,
+        deck.add(random.randrange(NBR_ITEMS))
+    while len(deck) < MIN_ITEM:
+        deck.add(random.randrange(NBR_ITEMS))
+    while len(deck) > MAX_ITEM:
+        deck.remove(random.choice(sorted(tuple(deck))))
+    return deck,
 
 
 toolbox.register("evaluate", evalKnapsack)
@@ -210,27 +280,40 @@ toolbox.register("select", tools.selNSGA2)
 
 def main():
     random.seed(64)
-    NGEN = 50
-    MU = 50
+    NGEN = st.sidebar.slider('How many deck generations to evolve?',
+                             min_value=10, max_value=100, value=10) or 10
+    MU = st.sidebar.slider('How many decks should a generation have?',
+                             min_value=5, max_value=50, value=15) or 15
     LAMBDA = 100
-    CXPB = 0.7
-    MUTPB = 0.2
+    CXPB = 0.8
+    MUTPB = 0.05
 
     pop = toolbox.population(n=MU)
     hof = tools.ParetoFront()
     stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", numpy.mean, axis=0)
-    stats.register("std", numpy.std, axis=0)
-    stats.register("min", numpy.min, axis=0)
-    stats.register("max", numpy.max, axis=0)
+    stats.register("avg", np.mean, axis=0)
+    stats.register("std", np.std, axis=0)
+    stats.register("min", np.min, axis=0)
+    stats.register("max", np.max, axis=0)
 
-    algorithms.eaMuPlusLambda(pop, toolbox, MU, LAMBDA, CXPB, MUTPB, NGEN, stats,
-                              halloffame=hof)
+    with st.spinner('Simulating, evolving, mutating, changing, procreating...'):
+        algorithms.eaMuPlusLambda(pop, toolbox, MU, LAMBDA, CXPB, MUTPB, NGEN, stats,
+                                  halloffame=hof)
+        st.success('Simulation finished!!')
+        # st.balloons()
+
+    best_deck_list = list(hof[0])  # list of cards in best deck
+
+    df_best_deck = df_tempest[df_tempest.index.isin(best_deck_list)]
+
+    compute_deck_stats(df_best_deck)
 
     return pop, stats, hof
 
 
 if __name__ == "__main__":
     main()
+
+    logger.info('Results available')
 
     logger.info(f'FINISHED: {__file__}')
