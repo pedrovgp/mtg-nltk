@@ -73,6 +73,7 @@ tqdm.pandas(desc="Progress")
 
 from sqlalchemy import create_engine
 import sqlalchemy
+
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
@@ -85,73 +86,119 @@ df_tempest = pd.read_sql_query(f'''
    SELECT * 
    FROM cards
    WHERE cards.set IN ('{INITIAL_SET}')''',
-   engine,
-   # index_col='id'
-)
+                               engine,
+                               # index_col='id'
+                               )
 df_tempest = pd.concat([df_tempest for x in range(4)]).reset_index(drop=True)
 logger.info(f'df_tempest shape: {df_tempest.shape}')
 
-def compute_deck_stats(deck_df):
+# initial number of cards in the decks
+IND_INIT_SIZE = 36
+# min and max items should be the max deck size (in cards)
+MIN_ITEM, MAX_ITEM = st.sidebar.slider(
+    'Minimum and maximum cards for deck',
+    min_value=30, max_value=40, value=(34, 36)
+) or (34, 36)
+# NBR_ITEMS would be the whole pool of cards we can build our deck from
+NBR_ITEMS = df_tempest.shape[0]
 
-    st.write(f'Final deck has {deck_df.shape[0]} cards')
+logger.info(f'Class DeckDf creation')
 
-    st.write('Mana curve')
-    cmc = deck_df.pivot_table(
-        index=['cmc'], values=['id'], aggfunc=lambda x: x.count()
-    ).transpose()
-    logger.info(cmc)
-    st.write(cmc)
 
-    st.write('Cards by color')
-    colors = deck_df.pivot_table(
-        index=['colors'], values=['id'], aggfunc=lambda x: x.count()
-    ).transpose()
-    logger.info(colors)
-    st.write(colors)
+class DeckVal:
+    """This is a class for holding a deck as a dataframe
+    but also implementing methods for metrics calculations
+    and plottings"""
 
-    st.write('Cards that add mana')
-    has_add = deck_df.pivot_table(
-        index=['has_add'], values=['id'], aggfunc=lambda x: x.count()
-    ).transpose()
-    logger.info(has_add)
-    st.write(has_add)
+    def __init__(self, df=pd.DataFrame(),
+                 max_cards=MAX_ITEM,
+                 min_cards=MIN_ITEM,
+                 *args, **kwargs
+                 ):
+        self.df = df
+        if 'power_num' not in df.columns:
+            return
+        self.power_sum = self.df['power_num'].sum()
+        self.toughness_sum = self.df['toughness_num'].sum()
+        self.total_cards = self.df.shape[0]
+        self.max_cards = max_cards
+        self.min_cards = min_cards
 
-    st.write('Cards by type')
-    types = deck_df.pivot_table(
-        index=['types'], values=['id'], aggfunc=lambda x: x.count()
-    ).transpose()
-    logger.info(types)
-    st.write(types)
+    # from: https://mtg.gamepedia.com/Mana_curve
+    ideal_mana_curve = pd.DataFrame([9, 8, 8, 11])
+    ideal_mana_curve.index = ideal_mana_curve.index + 1
 
-    st.write('Power and toughness by type')
-    pt_by_type = deck_df.pivot_table(
-        index=['types'], values=['power_num', 'toughness_num'], aggfunc=np.sum
-    )
-    logger.info(pt_by_type)
-    st.write(pt_by_type)
+    def valuation(self):
+        """Returns a tuple of metrics for deck valuation"""
+        if self.total_cards > MAX_ITEM or self.total_cards < MIN_ITEM:
+            return -10000, -10000  # 10000, 0  # Ensure overweighted bags are dominated
+        return self.power_sum, self.toughness_sum  # weight, value
 
-    st.write('Power and toughness by color')
-    pt_by_color = deck_df.pivot_table(
-        index=['colors'], values=['power_num', 'toughness_num'], aggfunc=np.sum
-    )
-    logger.info(pt_by_color)
-    st.write(pt_by_color)
+    def compute_deck_stats(self, deck_df=pd.DataFrame()):
+        deck_df = deck_df if not deck_df.empty else self.df
 
-    st.write('Full deck list')
-    deck = (
-        deck_df.pivot_table(
-            index=['name'], values=['id'], aggfunc=lambda x: x.count()
+        st.write(f'Final deck has {deck_df.shape[0]} cards')
+
+        st.write('Mana curve')
+        cmc = deck_df.pivot_table(
+            index=['cmc'], values=['id'], aggfunc=lambda x: x.count()
+        ).transpose()
+        logger.info(cmc)
+        st.write(cmc)
+
+        st.write('Ideal mana curve')
+        st.write(self.ideal_mana_curve.transpose())
+
+        st.write('Cards by color')
+        colors = deck_df.pivot_table(
+            index=['colors'], values=['id'], aggfunc=lambda x: x.count()
+        ).transpose()
+        logger.info(colors)
+        st.write(colors)
+
+        st.write('Cards that add mana')
+        has_add = deck_df.pivot_table(
+            index=['has_add'], values=['id'], aggfunc=lambda x: x.count()
+        ).transpose()
+        logger.info(has_add)
+        st.write(has_add)
+
+        st.write('Cards by type')
+        types = deck_df.pivot_table(
+            index=['types'], values=['id'], aggfunc=lambda x: x.count()
+        ).transpose()
+        logger.info(types)
+        st.write(types)
+
+        st.write('Power and toughness by type')
+        pt_by_type = deck_df.pivot_table(
+            index=['types'], values=['power_num', 'toughness_num'], aggfunc=np.sum
         )
-        .merge(
+        logger.info(pt_by_type)
+        st.write(pt_by_type)
+
+        st.write('Power and toughness by color')
+        pt_by_color = deck_df.pivot_table(
+            index=['colors'], values=['power_num', 'toughness_num'], aggfunc=np.sum
+        )
+        logger.info(pt_by_color)
+        st.write(pt_by_color)
+
+        st.write('Full deck list')
+        deck = (
             deck_df.pivot_table(
-                index=['name'], values=['power_num', 'toughness_num'], aggfunc=np.sum
-            ), left_index=True, right_index=True
+                index=['name'], values=['id'], aggfunc=lambda x: x.count()
+            )
+                .merge(
+                deck_df.pivot_table(
+                    index=['name'], values=['power_num', 'toughness_num'], aggfunc=np.sum
+                ), left_index=True, right_index=True
 
+            )
         )
-    )
 
-    logger.info(deck)
-    st.write(deck)
+        logger.info(deck)
+        st.write(deck)
 
 
 #    This file is part of DEAP.
@@ -180,16 +227,6 @@ from deap import base
 from deap import creator
 from deap import tools
 
-# TODO initial number of cards in the deck
-IND_INIT_SIZE = 36
-# TODO max items should be the max deck size (in cards)
-MIN_ITEM, MAX_ITEM = st.sidebar.slider(
-    'Minimum and maximum cards for deck',
-    min_value=30, max_value=40, value=(34, 36)
-) or (34, 36)
-# TODO NBR_ITEMS would be the whole pool of cards we can build our deck from
-NBR_ITEMS = df_tempest.shape[0]
-
 # To assure reproductibility, the RNG seed is set prior to the items
 # dict initialization. It is also seeded in main().
 random.seed(64)
@@ -199,9 +236,9 @@ random.seed(64)
 items = {}
 # Create random items and store them in the items' dictionary.
 # An item has a (weight, value) attribute
-# TODO NBR_ITEMS should be all cards of initial set/collection
+# NBR_ITEMS should be all cards of initial set/collection
 for i in range(NBR_ITEMS):
-    # TODO 1 item would be one card, with all its attributes for later weighting
+    # 1 item would be one card, with all its attributes for later weighting
     items[i] = df_tempest.iloc[i]
     # items[i] = (random.randint(1, 10), random.uniform(0, 100))  # old
 
@@ -218,33 +255,30 @@ TOUGH_WEIGHT = st.sidebar.number_input(
 )
 creator.create("Fitness", base.Fitness, weights=(POWER_WEIGHT, TOUGH_WEIGHT))
 # Individual is a backpack/deck (a set of items/cards)
-# TODO this stays the same (set is ok if copies of cards get different ids.
+# this stays the same (set is ok if copies of cards get different ids.
 # If not, we need list so that a card can appear more than once in a deck)
 creator.create("Deck", set, fitness=creator.Fitness)
 
 toolbox = base.Toolbox()
 
 # Attribute generator
-# TODO this randomly generates items/cards
-# TODO need a way to not pull same card more than once
+# this randomly generates items/cards
 toolbox.register("attr_item", random.randrange, NBR_ITEMS)
 
 # Structure initializers
-# TODO this repeats card pulling until we get a deck
+# this repeats card pulling until we get a deck
 toolbox.register("deck", tools.initRepeat, creator.Deck,
                  toolbox.attr_item, IND_INIT_SIZE)
-# TODO this creates a population of decks to be selected on best fitness
+# this creates a population of decks to be selected on best fitness
 toolbox.register("population", tools.initRepeat, list, toolbox.deck)
 
-# TODO this evaluation function should carry our criteria for a good deck (start simple with P/T)
-# TODO it should return something of the same length as weights in Fitness above
-def evalKnapsack(deck):
-    d = df_tempest[df_tempest.index.isin(deck)]
-    power = d['power_num'].sum()
-    toughness = d['toughness_num'].sum()
-    if len(deck) > MAX_ITEM or len(deck) < MIN_ITEM:
-        return -10000, -10000  # 10000, 0  # Ensure overweighted bags are dominated
-    return power, toughness  # weight, value
+
+# this evaluation function should carry our criteria for a good deck (start simple with P/T)
+# it should return something of the same length as weights in Fitness above
+def evalDeck(deck):
+    d = DeckVal(df_tempest[df_tempest.index.isin(deck)])
+    return d.valuation()  # weight, value
+
 
 # TODO crossover strategy requires deep thought
 def cxSet(ind1, ind2):
@@ -256,6 +290,7 @@ def cxSet(ind1, ind2):
     ind1 &= ind2  # Intersection (inplace)
     ind2 ^= temp  # Symmetric Difference (inplace)
     return ind1, ind2
+
 
 # TODO mutation strategy requires deep thought
 def mutSet(deck):
@@ -272,7 +307,7 @@ def mutSet(deck):
     return deck,
 
 
-toolbox.register("evaluate", evalKnapsack)
+toolbox.register("evaluate", evalDeck)
 toolbox.register("mate", cxSet)
 toolbox.register("mutate", mutSet)
 toolbox.register("select", tools.selNSGA2)
@@ -283,7 +318,7 @@ def main():
     NGEN = st.sidebar.slider('How many deck generations to evolve?',
                              min_value=10, max_value=100, value=10) or 10
     MU = st.sidebar.slider('How many decks should a generation have?',
-                             min_value=5, max_value=50, value=15) or 15
+                           min_value=5, max_value=50, value=15) or 15
     LAMBDA = 100
     CXPB = 0.8
     MUTPB = 0.05
@@ -306,7 +341,7 @@ def main():
 
     df_best_deck = df_tempest[df_tempest.index.isin(best_deck_list)]
 
-    compute_deck_stats(df_best_deck)
+    DeckVal().compute_deck_stats(df_best_deck)
 
     return pop, stats, hof
 
