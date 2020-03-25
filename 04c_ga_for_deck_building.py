@@ -22,6 +22,9 @@
 
 import pandas as pd
 import numpy as np
+import re
+
+import functools
 
 import streamlit as st
 
@@ -102,6 +105,16 @@ MIN_ITEM, MAX_ITEM = st.sidebar.slider(
 # NBR_ITEMS would be the whole pool of cards we can build our deck from
 NBR_ITEMS = df_tempest.shape[0]
 
+# lets start only by maximizing P/T, both weighting 1
+POWER_WEIGHT = st.sidebar.number_input(
+    'How much would you like Power to weight in optimization?',
+    min_value=1.0, max_value=10.0, value=1.0
+)
+TOUGH_WEIGHT = st.sidebar.number_input(
+    'How much would you like Thoughness to weight in optimization?',
+    min_value=1.0, max_value=10.0, value=1.0
+)
+
 logger.info(f'Class DeckDf creation')
 
 
@@ -110,32 +123,52 @@ class DeckVal:
     but also implementing methods for metrics calculations
     and plottings"""
 
-    def __init__(self, df=pd.DataFrame(),
+    def __init__(self, df,
                  max_cards=MAX_ITEM,
                  min_cards=MIN_ITEM,
                  *args, **kwargs
                  ):
         self.df = df
-        if 'power_num' not in df.columns:
-            return
+        self.cmc = self.df['cmc']
         self.power_sum = self.df['power_num'].sum()
         self.toughness_sum = self.df['toughness_num'].sum()
         self.total_cards = self.df.shape[0]
         self.max_cards = max_cards
         self.min_cards = min_cards
+        self.colors_set = self.get_colors_set()
+        self.colors_count = len(self.colors_set)
 
     # from: https://mtg.gamepedia.com/Mana_curve
     ideal_mana_curve = pd.DataFrame([9, 8, 8, 11])
     ideal_mana_curve.index = ideal_mana_curve.index + 1
 
+    WEIGHTS = (POWER_WEIGHT, TOUGH_WEIGHT, -22500.0)
+
     def valuation(self):
         """Returns a tuple of metrics for deck valuation"""
-        if self.total_cards > MAX_ITEM or self.total_cards < MIN_ITEM:
-            return -10000, -10000  # 10000, 0  # Ensure overweighted bags are dominated
-        return self.power_sum, self.toughness_sum  # weight, value
 
-    def compute_deck_stats(self, deck_df=pd.DataFrame()):
-        deck_df = deck_df if not deck_df.empty else self.df
+        # Ensure deck card limits problems are dominated
+        if self.total_cards > MAX_ITEM or self.total_cards < MIN_ITEM:
+            return tuple(-10000 for x in range(len(self.WEIGHTS)))
+
+        result = (
+            self.power_sum,
+            self.toughness_sum,
+            self.colors_count
+        )
+        if not len(result) == len(self.WEIGHTS):
+            raise Exception(f'Results and WEIGHTS must have the same length.')
+
+        return result
+
+    def get_colors_set(self):
+
+        self.df['colors_set'] = self.df['colors'].apply(lambda x: set(re.findall('([A-Z]){1}', x)))
+        self.colors_set = functools.reduce(lambda a, b: a.union(b), self.df['colors_set'].values, set())
+        return self.colors_set
+
+    def compute_deck_stats(self):
+        deck_df = self.df
 
         st.write(f'Final deck has {deck_df.shape[0]} cards')
 
@@ -200,6 +233,10 @@ class DeckVal:
         logger.info(deck)
         st.write(deck)
 
+        logger.info(f'{self.colors_count} color: {self.colors_set}')
+
+def get_deck_val(set_of_ids, df = df_tempest):
+    return DeckVal(df[df.index.isin(set_of_ids)])
 
 #    This file is part of DEAP.
 #
@@ -242,18 +279,7 @@ for i in range(NBR_ITEMS):
     items[i] = df_tempest.iloc[i]
     # items[i] = (random.randint(1, 10), random.uniform(0, 100))  # old
 
-# Fitness is -1 for weight and +1 for value
-# TODO adjust weights to correspond to item len
-# lets start only by maximizing P/T, both weighting 1
-POWER_WEIGHT = st.sidebar.number_input(
-    'How much would you like Power to weight in optimization?',
-    min_value=1.0, max_value=10.0, value=1.0
-)
-TOUGH_WEIGHT = st.sidebar.number_input(
-    'How much would you like Thoughness to weight in optimization?',
-    min_value=1.0, max_value=10.0, value=1.0
-)
-creator.create("Fitness", base.Fitness, weights=(POWER_WEIGHT, TOUGH_WEIGHT))
+creator.create("Fitness", base.Fitness, weights=DeckVal.WEIGHTS)
 # Individual is a backpack/deck (a set of items/cards)
 # this stays the same (set is ok if copies of cards get different ids.
 # If not, we need list so that a card can appear more than once in a deck)
@@ -276,7 +302,7 @@ toolbox.register("population", tools.initRepeat, list, toolbox.deck)
 # this evaluation function should carry our criteria for a good deck (start simple with P/T)
 # it should return something of the same length as weights in Fitness above
 def evalDeck(deck):
-    d = DeckVal(df_tempest[df_tempest.index.isin(deck)])
+    d = get_deck_val(deck)
     return d.valuation()  # weight, value
 
 
@@ -291,7 +317,8 @@ def cxSet(ind1, ind2):
     ind2 ^= temp  # Symmetric Difference (inplace)
     return ind1, ind2
 
-
+# Testing if adding black ony ids works
+# black_ids = list(set(df_tempest[df_tempest['colors'] == '{B}'].index))
 # TODO mutation strategy requires deep thought
 def mutSet(deck):
     """Mutation that pops or add an element."""
@@ -300,8 +327,10 @@ def mutSet(deck):
             deck.remove(random.choice(sorted(tuple(deck))))
     else:
         deck.add(random.randrange(NBR_ITEMS))
+        # deck.add(random.choice(black_ids))
     while len(deck) < MIN_ITEM:
         deck.add(random.randrange(NBR_ITEMS))
+        # deck.add(random.choice(black_ids))
     while len(deck) > MAX_ITEM:
         deck.remove(random.choice(sorted(tuple(deck))))
     return deck,
@@ -316,12 +345,12 @@ toolbox.register("select", tools.selNSGA2)
 def main():
     random.seed(64)
     NGEN = st.sidebar.slider('How many deck generations to evolve?',
-                             min_value=10, max_value=100, value=10) or 10
+                             min_value=3, max_value=100, value=30) or 30
     MU = st.sidebar.slider('How many decks should a generation have?',
-                           min_value=5, max_value=50, value=15) or 15
+                           min_value=2, max_value=50, value=15) or 15
     LAMBDA = 100
     CXPB = 0.8
-    MUTPB = 0.05
+    MUTPB = 0.2
 
     pop = toolbox.population(n=MU)
     hof = tools.ParetoFront()
@@ -339,9 +368,8 @@ def main():
 
     best_deck_list = list(hof[0])  # list of cards in best deck
 
-    df_best_deck = df_tempest[df_tempest.index.isin(best_deck_list)]
-
-    DeckVal().compute_deck_stats(df_best_deck)
+    df_best_deck = get_deck_val(best_deck_list)
+    df_best_deck.compute_deck_stats()
 
     return pop, stats, hof
 
