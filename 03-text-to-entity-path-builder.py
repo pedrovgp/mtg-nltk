@@ -285,6 +285,7 @@ def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
             graph_row['entity_node_entity'] = G.nodes[path[-1]]['entity_node_entity']
             graph_row['entity_node_ent_type'] = G.nodes[path[-1]]['entity_node_ent_type']
             graph_row['entity_node_desc'] = G.nodes[path[-1]]['entity_node_desc']
+            graph_row['entity_node_lemma'] = G.nodes[path[-1]]['entity_node_lemma']
             
             graph_row['path_pk'] = (graph_row['path_text_key']
                                     +'-'+graph_row['entity_node_entity']

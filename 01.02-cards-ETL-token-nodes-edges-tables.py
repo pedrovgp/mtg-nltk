@@ -689,6 +689,7 @@ def parse_doc_to_list_of_dicts(df_row, original_cols=[], doc_col = 'part_doc'):
     entity_node_ent_type = []
     entity_node_entity = []
     entity_node_desc = []
+    entity_node_lemma = []
     
     # Track relations between token_nodes
     tracker = HashableDict()
@@ -741,12 +742,15 @@ def parse_doc_to_list_of_dicts(df_row, original_cols=[], doc_col = 'part_doc'):
             entity_node_entity.append(ent)
             typ, desc = ent.split(': ')
             entity_node_ent_type.append(typ)
+            if not desc: desc = t.lemma_
             entity_node_desc.append(desc)
+            entity_node_lemma.append(t.lemma_)
         
         else:
             entity_node_ent_type.append(pd.np.nan)
             entity_node_entity.append(pd.np.nan)
             entity_node_desc.append(pd.np.nan)
+            entity_node_lemma.append(pd.np.nan)
             
         token_node.append(token_dic.hexdigext())
         token_head_dep.append(t.dep_.lower())
@@ -777,6 +781,7 @@ def parse_doc_to_list_of_dicts(df_row, original_cols=[], doc_col = 'part_doc'):
     res['entity_node_ent_type'] = entity_node_ent_type
     res['entity_node_entity'] = entity_node_entity
     res['entity_node_desc'] = entity_node_desc
+    res['entity_node_lemma'] = entity_node_lemma
     
     res['token_to_entity_edge'] = token_to_entity_edge
 #     res['pop_node'] = pop_node # avoided
@@ -936,7 +941,8 @@ for i in tqdm(range(unique_card_ids.shape[0]//chunksize)):
 
     # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Entity nodes
-    nodes_cols['entity'] = ['entity_node', 'entity_node_entity','entity_node_ent_type', 'entity_node_desc']
+    nodes_cols['entity'] = ['entity_node', 'entity_node_entity', 'entity_node_ent_type',
+                            'entity_node_desc', 'entity_node_lemma']
     nodes['entity'] = (cdfg[nodes_cols['entity']]
                        .dropna(subset=['entity_node_ent_type'])
                        .rename(columns={'entity_node':'node_id'})
@@ -1197,6 +1203,7 @@ for col in nodes_card_df:
     temp['entity_node'] = temp['entity_node_entity'].apply(lambda x: entity_key_to_hash_map[x])
     temp = temp.rename(columns={col: 'entity_node_desc'})
     temp = temp.drop_duplicates(subset=['card_id', 'entity_node'])
+    temp['entity_node_lemma'] = temp['entity_node_desc']
     res.append(temp)
     
 res = pd.concat(res, sort=True)
@@ -1227,7 +1234,7 @@ nodes_attr = {}
 
 
 # Entity nodes
-nodes_cols['entity'] = ['entity_node', 'entity_node_entity','entity_node_ent_type', 'entity_node_desc']
+nodes_cols['entity'] = ['entity_node', 'entity_node_entity','entity_node_ent_type', 'entity_node_desc', 'entity_node_lemma']
 nodes['entity'] = (cdfg[nodes_cols['entity']]
                    .dropna(subset=['entity_node_ent_type'])
                    .rename(columns={'entity_node':'node_id'})

@@ -81,19 +81,27 @@ engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
-INITIAL_SET = 'TMP'
+INITIAL_SETS = ['TMP', 'EXO', 'STH']
+INITIAL_SETS = ','.join([f"'{x}'" for x in INITIAL_SETS])
 
-st.write(f'At first, we are considering only {INITIAL_SET} as a collection to build the deck from.')
+st.write(f'At first, we are considering only {INITIAL_SETS} as collections to build the deck from.')
 
-df_tempest = pd.read_sql_query(f'''
+df_card_pool = pd.read_sql_query(f'''
    SELECT * 
    FROM cards
-   WHERE cards.set IN ('{INITIAL_SET}')''',
-                               engine,
-                               # index_col='id'
-                               )
-df_tempest = pd.concat([df_tempest for x in range(4)]).reset_index(drop=True)
-logger.info(f'df_tempest shape: {df_tempest.shape}')
+   WHERE cards.set IN ({INITIAL_SETS})''',
+                                 engine,
+                                 # index_col='id'
+                                 )
+
+# Let's consider only whites to start with
+# We'll focus on: whats the best 60 card monocolor deck we can build with the given set?
+df_card_pool = df_card_pool[df_card_pool['colors'].isin(['{W}', '{}'])]
+
+logger.info(f'df_card_pool shape: {df_card_pool.shape}')
+
+# Create 4 copies of each card, for us to be able to have at most 4 copies of each in a deck
+df_card_pool = pd.concat([df_card_pool for x in range(4)]).reset_index(drop=True)
 
 # initial number of cards in the decks
 IND_INIT_SIZE = 36
@@ -103,7 +111,7 @@ MIN_ITEM, MAX_ITEM = st.sidebar.slider(
     min_value=30, max_value=40, value=(34, 36)
 ) or (34, 36)
 # NBR_ITEMS would be the whole pool of cards we can build our deck from
-NBR_ITEMS = df_tempest.shape[0]
+NBR_ITEMS = df_card_pool.shape[0]
 
 # lets start only by maximizing P/T, both weighting 1
 POWER_WEIGHT = st.sidebar.number_input(
@@ -121,7 +129,32 @@ logger.info(f'Class DeckDf creation')
 class DeckVal:
     """This is a class for holding a deck as a dataframe
     but also implementing methods for metrics calculations
-    and plottings"""
+    and plottings
+
+    2020-03-25:
+
+    I am planning to implement the whole points and weights calculation here,
+    bypassing GA algorithms weight. It is easier to use Pandas to assign and calibrate weights anyway.
+    Cards should have BASE POINTS and ADJUSTED DISCOUNTED POINTS.
+    Adjusted discounted points are base points corrected by the probability of landing the card in each
+    turn and discounted at a certain discount rate.
+
+    Ex.:
+    Base points: 4. CMC: 3.
+    Probability of landing in each turn: [0, 0, 0.92, 0.97, 0.99,...]
+    Discounted probability: 0.7.
+    Adjusted discounted points = base_points*discounted_proba = 0.7*4 = 2.8
+
+    The deck total points could be the sum/avg of all cards adjusted_discounted_points
+
+    It is also worth noting that base points of a card are a function of INDIVIDUAL and CONTEXTUAL points.
+    INDIVIDUAL: a function of only the cards attributes
+    CONTEXTUAL (synergy and competitiveness)
+     - Synergy: a function of a cards interaction with other cards in deck
+     - Competitiveness: a function of a cards interaction with other cards in a given set/pool
+
+     For starters, synergy and competitivenss could be calculated at deck level, as graph properties.
+    """
 
     def __init__(self, df,
                  max_cards=MAX_ITEM,
@@ -137,6 +170,7 @@ class DeckVal:
         self.min_cards = min_cards
         self.colors_set = self.get_colors_set()
         self.colors_count = len(self.colors_set)
+        self.assign_individual_base_points()
 
     # from: https://mtg.gamepedia.com/Mana_curve
     ideal_mana_curve = pd.DataFrame([9, 8, 8, 11])
@@ -151,21 +185,30 @@ class DeckVal:
         if self.total_cards > MAX_ITEM or self.total_cards < MIN_ITEM:
             return tuple(-10000 for x in range(len(self.WEIGHTS)))
 
-        result = (
+        # This will be multiplied by WEIGHTS for optimization
+        metrics = (
             self.power_sum,
             self.toughness_sum,
             self.colors_count
         )
-        if not len(result) == len(self.WEIGHTS):
+        if not len(metrics) == len(self.WEIGHTS):
             raise Exception(f'Results and WEIGHTS must have the same length.')
 
-        return result
+        return metrics
 
     def get_colors_set(self):
 
         self.df['colors_set'] = self.df['colors'].apply(lambda x: set(re.findall('([A-Z]){1}', x)))
         self.colors_set = functools.reduce(lambda a, b: a.union(b), self.df['colors_set'].values, set())
         return self.colors_set
+
+    def assign_individual_base_points(self):
+        """Individual base points are context independent points of a card
+        (unlike synergy and competitiveness points).
+        It can be a function of power, toughness, effects, abilities, etc."""
+
+        self.df['ibp'] = (self.df['power_num'] + self.df['toughness_num'])  # /self.df['cmc']
+        return self.df
 
     def compute_deck_stats(self):
         deck_df = self.df
@@ -235,7 +278,7 @@ class DeckVal:
 
         logger.info(f'{self.colors_count} color: {self.colors_set}')
 
-def get_deck_val(set_of_ids, df = df_tempest):
+def get_deck_val(set_of_ids, df = df_card_pool):
     return DeckVal(df[df.index.isin(set_of_ids)])
 
 #    This file is part of DEAP.
@@ -276,7 +319,7 @@ items = {}
 # NBR_ITEMS should be all cards of initial set/collection
 for i in range(NBR_ITEMS):
     # 1 item would be one card, with all its attributes for later weighting
-    items[i] = df_tempest.iloc[i]
+    items[i] = df_card_pool.iloc[i]
     # items[i] = (random.randint(1, 10), random.uniform(0, 100))  # old
 
 creator.create("Fitness", base.Fitness, weights=DeckVal.WEIGHTS)
@@ -318,7 +361,7 @@ def cxSet(ind1, ind2):
     return ind1, ind2
 
 # Testing if adding black ony ids works
-# black_ids = list(set(df_tempest[df_tempest['colors'] == '{B}'].index))
+# black_ids = list(set(df_card_pool[df_card_pool['colors'] == '{B}'].index))
 # TODO mutation strategy requires deep thought
 def mutSet(deck):
     """Mutation that pops or add an element."""

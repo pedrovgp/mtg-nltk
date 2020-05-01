@@ -743,12 +743,16 @@ from multiprocessing import Pool
 import tqdm
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 if __name__ == '__main__':
-    for l in tqdm_func(list_to_distribute):
-        functions.build_graphs_of_cards(l)
-    # with Pool(4) as p:
+    # for l in tqdm_func(list_to_distribute):
+    #     functions.build_graphs_of_cards(l)
+    total = len(list_to_distribute)
+    processed = 0
+    with Pool(10) as p:
         # r = list(tqdm_func(p.imap(functions.build_graphs_of_cards, list_to_distribute), total=len(list_to_distribute)))
         # r = list(p.imap(functions.build_graphs_of_cards, list_to_distribute))
-#         p.map(functions.build_graphs_of_cards, list_to_distribute)
+        for i in p.imap_unordered(functions.build_graphs_of_cards, list_to_distribute):
+            processed += 1
+            logger.info(f'Processed {total}/{processed}: {i}')
 # -
 
 # ### Testing
@@ -773,4 +777,4 @@ if __name__ == '__main__':
 #     )
 # #list_to_distribute
 
-logger.info(f'FINISHED: {__file__}')
+    logger.info(f'FINISHED: {__file__}')

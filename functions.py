@@ -216,4 +216,4 @@ def build_graphs_of_cards(obj_tuple, method='append'):
         result={}
 
     logger.debug(f'{f_id}: FINISHED. After: {datetime.datetime.now()-start}')
-    return None
+    return obj_tuple
