@@ -1,0 +1,14 @@
+4 Goblin Goon
+4 Goblin King
+1 Goblin Lackey
+4 Goblin Lookout
+4 Goblin Recruiter
+4 Goblin Ringleader
+4 Goblin Sledder
+4 Goblin Warchief
+3 Mogg Sentry
+20 Mountain
+4 Reckless One
+4 Sparksmith
+
+
