@@ -176,7 +176,7 @@ for path, dir, filenames in os.walk('./decks/'):
             print('Already registered, skipping')
             continue
         
-        with open(path+filename, 'r') as f:
+        with open(os.path.join(path, filename), 'r') as f:
             txt = f.readlines()
             #print(txt)
             deck_list = []
