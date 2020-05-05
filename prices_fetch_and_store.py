@@ -99,7 +99,7 @@ df.to_sql(tname, engine, if_exists='replace', chunksize=10000, index=True)
 
 engine.execute(f'''DROP VIEW IF EXISTS {tname}_join_cards CASCADE''')
 engine.execute(f'''
-CREATE OR REPLACE VIEW {tname}_join_cards AS
+CREATE VIEW {tname}_join_cards AS
      (SELECT *
      FROM {tname} 
      LEFT JOIN (SELECT *
@@ -111,11 +111,15 @@ CREATE OR REPLACE VIEW {tname}_join_cards AS
     )
 ''')
 
+engine.execute(f'''DROP VIEW IF EXISTS {tname}_join_cards_ranked CASCADE''')
 engine.execute(f'''
- CREATE OR REPLACE VIEW {tname}_join_cards_ranked AS
+ CREATE VIEW {tname}_join_cards_ranked AS
  (SELECT *
   ,DENSE_RANK() over (partition by {tname}_join_cards.name order by {tname}_join_cards.price asc) as rank_cheapest_first
   ,DENSE_RANK() over (partition by {tname}_join_cards.name order by {tname}_join_cards.price desc) as rank_cheapest_last
+  , (extract(year from age({tname}_join_cards.date, {tname}_join_cards."set_releaseDate")) * 12
+    + extract(month from age({tname}_join_cards.date, {tname}_join_cards."set_releaseDate"))) as months_since_release
+  , DATE_PART('day', {tname}_join_cards.date - {tname}_join_cards."set_releaseDate") as days_since_release
  FROM {tname}_join_cards
 )
 ''')
