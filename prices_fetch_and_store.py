@@ -84,14 +84,40 @@ for card_id, pric in tqdm.tqdm(prices.items()):
             if not isinstance(date_dict, dict):  # Dont know why, by uuic sometime appear as a value in medium_dict
                 continue
             for date, value in date_dict.items():
-                prices_reschemad.append({'date': date, 'card_id': card_id, 'card_meda': medium, 'price': value})
+                prices_reschemad.append({'date': date, 'card_id': card_id, 'card_media': medium, 'price': value})
                 # if stop: break
                 # if len(prices_reschemad)> 50: stop = True
 
 df = pd.DataFrame(prices_reschemad)
-df = df.set_index(['date', 'card_id', 'card_meda'])
+df['date'] = pd.to_datetime(df['date'])
+df = df.set_index(['date', 'card_id', 'card_media'])
 
 logger.info('Saving prices to postgres')
-df.to_sql('cards_prices', engine, if_exists='replace', chunksize=10000, index=True)
+tname = 'prices'
+engine.execute(f'''DROP TABLE IF EXISTS {tname} CASCADE''')
+df.to_sql(tname, engine, if_exists='replace', chunksize=10000, index=True)
+
+engine.execute(f'''DROP VIEW IF EXISTS {tname}_join_cards CASCADE''')
+engine.execute(f'''
+CREATE OR REPLACE VIEW {tname}_join_cards AS
+     (SELECT *
+     FROM {tname} 
+     LEFT JOIN (SELECT *
+                ,DENSE_RANK() over (partition by cards.name order by cards."set_releaseDate" asc) as rank_oldest_first
+                ,DENSE_RANK() over (partition by cards.name order by cards."set_releaseDate" desc) as rank_newest_first
+                FROM cards
+                ) as cards_enh
+     ON prices.card_id=cards_enh.id
+    )
+''')
+
+engine.execute(f'''
+ CREATE OR REPLACE VIEW {tname}_join_cards_ranked AS
+ (SELECT *
+  ,DENSE_RANK() over (partition by {tname}_join_cards.name order by {tname}_join_cards.price asc) as rank_cheapest_first
+  ,DENSE_RANK() over (partition by {tname}_join_cards.name order by {tname}_join_cards.price desc) as rank_cheapest_last
+ FROM {tname}_join_cards
+)
+''')
 
 logger.info(f'FINISHED: {__file__}')
