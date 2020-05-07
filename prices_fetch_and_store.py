@@ -106,9 +106,9 @@ import time
 
 tname = 'prices'
 metatable_name = 'mtgprices_cards_urls'
-UPDATE_LINKS = False  # This will scrape all links again and set status to None (prices will be refetched for them)
+REPROCESS_EVERYTHING = False  # This will scrape all links again and set status to None (prices will be refetched for them)
 
-if UPDATE_LINKS:
+if REPROCESS_EVERYTHING:
 
     # 1. Scrape collections urls
 
@@ -226,11 +226,11 @@ def etl_of_card_prices(card_url, tname='prices', metatable_name=metatable_name):
         return e
 
     # Throtlle
-    time.sleep(random.random()/10)
     logger.info(f'SUCCESS: {url}')
     orig_row['status'] = f'SUCCESS'
     orig_row['last_scraped'] = datetime.datetime.now()
     orig_row.to_sql(metatable_name, engine, if_exists='append')
+    time.sleep(random.random() / 10)
     return url
 
 def clean_up():
@@ -265,11 +265,11 @@ if __name__ == '__main__':
     # for l in tqdm_func(list_to_distribute):
     #     functions.build_graphs_of_cards(l)
     clean_up()
+
     history = pd.read_sql_table(metatable_name, engine)
     history = history[history['status'] != 'SUCCESS']
     urls_list = list(history['card_url'].unique())
     total = len(urls_list)
-    processed = 0
     start = datetime.datetime.now()
     with Pool(4) as p:
         logger.info('Starting distributed cards processing')
