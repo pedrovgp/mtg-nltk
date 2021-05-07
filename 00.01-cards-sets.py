@@ -23,7 +23,7 @@
 
 import json
 import pandas as pd
-import numpy as np
+import numpy
 import re
 from collections import defaultdict
 
@@ -145,7 +145,7 @@ def splitDataFrameList(df, target_column, separator=None):
                 row_accumulator.append(new_row)
         else:
             new_row = row.to_dict()
-            new_row[target_column] = pd.np.nan
+            new_row[target_column] = numpy.nan
             row_accumulator.append(new_row)
 
     new_rows = []
@@ -451,7 +451,7 @@ def splitDataFrameList(df, target_column, separator=None):
                 row_accumulator.append(new_row)
         else:
             new_row = row.to_dict()
-            new_row[target_column] = np.nan
+            new_row[target_column] = numpy.nan
             row_accumulator.append(new_row)
 
     new_rows = []
@@ -480,12 +480,12 @@ def split_abilities_and_keep_the_rest(df_row):
 
 def get_aspas(text):
     if pd.isnull(text):
-        return np.nan
+        return numpy.nan
 
     reg = re.findall(r"\"(.+?)\"", text)
 
     if not reg:
-        return np.nan
+        return numpy.nan
 
     res = reg[0]
 
@@ -622,7 +622,7 @@ cards_df_pops = pd.concat(cards_df_paragraphs["pop"].values, sort=True)
 # index = ['pop_type']
 # values = ['cont']
 #
-# pivot_pop = temp.pivot_table(index=index, values=values, aggfunc=np.sum)
+# pivot_pop = temp.pivot_table(index=index, values=values, aggfunc=numpy.sum)
 # pivot_pop
 # -
 
@@ -748,7 +748,7 @@ named_card_regex = (
 # a = cards_df['text_preworked'].apply(
 #     lambda x: re.findall(named_card_regex, x)
 #     if re.findall(named_card_regex, x)
-#     else np.nan
+#     else numpy.nan
 # ).dropna()
 
 # + deletable=false editable=false hidden=true run_control={"frozen": true}
@@ -792,7 +792,7 @@ cards_df_pop_parts["text_pk"] = cards_df_pop_parts.progress_apply(
 
 # ## Drop empty pops
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
-cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", np.nan)
+cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", numpy.nan)
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts = cards_df_pop_parts.dropna(subset=["part"])
 
@@ -826,7 +826,7 @@ cards_df_pop_parts.set_index(
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts = pd.read_sql_table(export_table_name, engine)
 
-cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", np.nan).dropna()
+cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", numpy.nan).dropna()
 cards_df_pop_parts = cards_df_pop_parts.dropna(subset=["part"])
 
 # +

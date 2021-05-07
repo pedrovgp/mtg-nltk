@@ -25,6 +25,7 @@
 
 import json
 import pandas as pd
+import numpy
 import re
 from collections import defaultdict
 
@@ -89,7 +90,7 @@ def splitDataFrameList(df, target_column, separator=None):
                 row_accumulator.append(new_row)
         else:
             new_row = row.to_dict()
-            new_row[target_column] = pd.np.nan
+            new_row[target_column] = numpy.nan
             row_accumulator.append(new_row)
 
     new_rows = []

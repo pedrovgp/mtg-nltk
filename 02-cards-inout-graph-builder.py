@@ -34,11 +34,9 @@
 #           }
 # -
 
-import json
 import pandas as pd
-import re
+import numpy
 from collections import defaultdict
-from IPython.display import clear_output
 
 import logging
 import inspect
@@ -139,7 +137,7 @@ def splitDataFrameList(df,target_column,separator=None):
                 row_accumulator.append(new_row)
         else:
             new_row = row.to_dict()
-            new_row[target_column] = pd.np.nan
+            new_row[target_column] = numpy.nan
             row_accumulator.append(new_row)
     new_rows = []
     df.apply(splitListToRows, axis=1, args=(new_rows,target_column,separator))
@@ -203,7 +201,7 @@ def draw_graph(G, filename='test.png'):
         attrs = node.get_attributes()
         node.set_label(str(attrs.get('label', 'none')))
     #     node.set_fontcolor(colors[random.randrange(len(colors))])
-        entity_node_ent_type = attrs.get('entity_node_ent_type', pd.np.nan)
+        entity_node_ent_type = attrs.get('entity_node_ent_type', numpy.nan)
         if not pd.isnull(entity_node_ent_type):
             color = entities_colors[entity_node_ent_type.strip('"')]
             node.set_fillcolor(color)
@@ -408,7 +406,7 @@ import networkx as nx
 #     card_0_edges = pd.read_sql_query(card_0_edges_qr, engine)
 #     
 #     # Relevant entity nodes
-#     nodes_set = set(pd.np.union1d(card_0_edges['source'].values,card_0_edges['target'].values))
+#     nodes_set = set(numpy.union1d(card_0_edges['source'].values,card_0_edges['target'].values))
 #     ent_0_nodes_qr = '''
 #     SELECT * FROM {0}
 #     WHERE node_id IN {1}
@@ -483,7 +481,7 @@ import networkx as nx
 #     card_0_in_edges = pd.read_sql_query(card_0_in_edges_qr, engine)
 #     
 #     # Relevant entity nodes
-#     nodes_set = set(pd.np.union1d(card_0_in_edges['source'].values,card_0_in_edges['target'].values))
+#     nodes_set = set(numpy.union1d(card_0_in_edges['source'].values,card_0_in_edges['target'].values))
 #     ent_0_nodes_qr = '''
 #     SELECT * FROM {0}
 #     WHERE node_id IN {1}

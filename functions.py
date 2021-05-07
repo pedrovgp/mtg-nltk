@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy
 import sqlalchemy
 import datetime
 import networkx as nx
@@ -97,7 +98,7 @@ def build_graphs_of_cards(obj_tuple, method='append'):
         logger.debug(f'{f_id}: Card edges query ran')
 
         # Relevant entity nodes
-        nodes_set = set(pd.np.union1d(card_0_edges['source'].values,card_0_edges['target'].values))
+        nodes_set = set(numpy.union1d(card_0_edges['source'].values,card_0_edges['target'].values))
         ent_0_nodes_qr = '''
         SELECT * FROM {0}
         WHERE node_id IN {1}
@@ -157,7 +158,7 @@ def build_graphs_of_cards(obj_tuple, method='append'):
         card_0_in_edges = pd.read_sql_query(card_0_in_edges_qr, engine)
 
         # Relevant entity nodes
-        nodes_set = set(pd.np.union1d(card_0_in_edges['source'].values,card_0_in_edges['target'].values))
+        nodes_set = set(numpy.union1d(card_0_in_edges['source'].values,card_0_in_edges['target'].values))
         ent_0_nodes_qr = '''
         SELECT * FROM {0}
         WHERE node_id IN {1}

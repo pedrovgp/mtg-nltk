@@ -39,10 +39,8 @@ import json
 import textwrap
 
 import pandas as pd
-import numpy as np
+import numpy
 import re
-from collections import defaultdict
-from IPython.display import clear_output
 
 import logging
 import inspect
