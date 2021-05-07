@@ -4,3 +4,10 @@ deck-analysis.pbix
 data/*
 pics/*
 logs/*
+elemt.txt
+poetry.lock
+*DS_Store*
+*__pycache__*
+AllPrintings.json
+SetList.json
+cards_links_list.pkl
