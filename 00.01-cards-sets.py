@@ -64,11 +64,21 @@ logger.addHandler(ch)
 # This is for terminal
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 from tqdm import tqdm
-
 tqdm.pandas(desc="Progress")
 
+# %% Download AllPrintings.json if it does not exist
+logger.info("Download AllPrintings.json if it does not exist")
+allprintings_fname="./AllPrintings.json"
+if not os.path.isfile(allprintings_fname):
+    raise Exception(f'Sorry, did not find AllPrintings.json in the projects root folder. ' 
+    'Please, download it here https://drive.google.com/file/d/1yMoKJ-ae7MstsXHleNjjZMIlQ_2ZmJhq/view?usp=sharing '
+    'and put it in the same folder as this file.')
+    import requests
+    url = "https://drive.google.com/file/d/1yMoKJ-ae7MstsXHleNjjZMIlQ_2ZmJhq/view?usp=sharing"
+    r = requests.get(url, allow_redirects=True)
+    open(allprintings_fname, 'wb').write(r.content)
 
-# + hideCode=false
+# %% 
 # https://mtgjson.com/api/v5/AllPrintings.json
 sets = json.load(open("./AllPrintings.json", "rb"))
 # sets = json.load(open('./AllSets.json', 'rb'))
