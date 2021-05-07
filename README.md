@@ -50,3 +50,10 @@ This is still ongoing work (help is welcome and appreciated, I would love to dis
 
 Files 04a and 04b outline a few other ideas (not yet implemented).
 
+### Some to do's, for interested people (including myself)
+
+1. Find and gather data on decks stats (victories, etc.).  
+1. Find and gather data on meta game and how it evolved with time, for different formats.  
+1. Engineer features from the decks graph.  
+1. Engineer individual cards features.  
+
