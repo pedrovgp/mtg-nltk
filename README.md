@@ -5,12 +5,15 @@
 >poetry install  
 >python -m spacy download en_core_web_sm
 
-Then, please install postgres locally and create a database 'mtg' owned by an user 'mtg' with password 'mtg'.
+Then, please install postgres locally (and run it on port 5432) and create a database 'mtg' owned by an user 'mtg' with password 'mtg'.
 This is to run parts of the code more efficiently.
 
-Now, to actually run the data processing flows:
+Also, you should install graphviz (sudo apt-get install graphiz or brew install graphviz). It will be necessary down the road.
 
-> TODO prefect here
+Now, to actually run the data processing flows:
+> python prefect_flows.py
+
+Sit back and relax, this is gonna take a while (around 3hr, I'd say). 
 
 And, if you want to see a simplfied MVP of what a final product would look like, run
 > streamlit run 04c_ga_for_deck_building.py 
