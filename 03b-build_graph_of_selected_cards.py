@@ -102,16 +102,19 @@ entities_colors = {
     'PLAYER': '#FF6E6E',
     'ZONE': '#F5D300',
     'ACTION': '#1ADA00',
+    'VERBAL_ACTION': '#1ADA00',
     'MANA': '#00DA84',
     'SUBTYPE': '#0DE5E5',
     'TYPE': '#0513F0',
     'SUPERTYPE': '#8D0BCA',
+    'NATURE': '#1ADA'  ,
     'ABILITY': '#cc3300',
     'COLOR': '#666633',
     'STEP': '#E0E0F8',
     'PT': '#C10AC1',
     'OBJECT': '#F5A40C',
 }
+ABSENT_COLOR = '#a87f32'
 
 def relayout(pygraph):
     """Given a graph (pygraphviz), redesign its layout"""
@@ -120,7 +123,7 @@ def relayout(pygraph):
         attrs = node.attr
         entity_node_ent_type = attrs.get('entity_node_ent_type', None)
         if (not pd.isnull(entity_node_ent_type)) and entity_node_ent_type:
-            color = entities_colors[entity_node_ent_type.strip('"')]
+            color = entities_colors.get(entity_node_ent_type.strip('"'), ABSENT_COLOR)
             node.attr['fillcolor'] = color
             node.attr['color'] = color
             node.attr['shape'] = 'hexagon'
