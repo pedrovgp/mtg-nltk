@@ -53,6 +53,8 @@ This is still ongoing work (help is welcome and appreciated, I would love to dis
 
 Files 04a and 04b outline a few other ideas (not yet implemented).
 
+You can also read more about the NLP processing [here](https://magictganalysis.wixsite.com/home/post/down-the-rabbit-hole). This page algo contains a dashboard for exploring some of the generated datasets applied to a few decks.
+
 ### Some to do's, for interested people (including myself)
 
 1. Find and gather data on decks stats (victories, etc.).  
