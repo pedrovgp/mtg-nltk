@@ -61,4 +61,6 @@ You can also read more about the NLP processing [here](https://magictganalysis.w
 1. Find and gather data on meta game and how it evolved with time, for different formats.  
 1. Engineer features from the decks graph.  
 1. Engineer individual cards features.  
+1. Include engineered features in genetic optimizer
+1. Learn weights for optimizer from meta game and deck stats
 
