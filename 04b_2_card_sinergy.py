@@ -39,6 +39,9 @@
 # **DESIRED RESULT**:
 # Pair of cards with a predicted SINERGY LEVEL
 
+import sqlalchemy
+from sqlalchemy import create_engine
+from tqdm import tqdm
 import copy
 import itertools
 import json
@@ -61,7 +64,7 @@ try:
     __file__
 except NameError:
     # for running in ipython
-    fname = '04a_2_card_sinergy.py.py'
+    fname = '04a_2_card_sinergy.py'
     __file__ = os.path.abspath(os.path.realpath(fname))
 
 logPathFileName = './logs/' + '04a.log'
@@ -76,7 +79,8 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -87,15 +91,13 @@ logger.addHandler(ch)
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
 # This is for terminal
-from tqdm import tqdm
 tqdm.pandas(desc="Progress")
 
 # # Params
 
-from sqlalchemy import create_engine
-import sqlalchemy
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
 # Let's
@@ -105,8 +107,6 @@ engine.connect()
 # 4. Build edge from card1 to card2 encoding simple path
 # 5. Remove all nodes except for the card nodes
 # Why: we should get a two cards graph with an edge encoding every meaningful info to assess sinergy
-
-
 
 
 logger.info(f'FINISHED: {__file__}')

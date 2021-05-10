@@ -36,6 +36,29 @@
 # incoming_nodes_df = nodes for cards and attribute entities
 # incoming_edges_df = edges from the nodes above
 
+import datetime
+import hashlib
+from collections import OrderedDict
+from spacy.tokens import Span
+from spacy.matcher import PhraseMatcher, Matcher
+from spacy.tokens import Token
+from spacy import displacy
+import spacy
+from spacy.symbols import (
+    ORTH,
+    POS,
+    NOUN,
+    VERB,
+    LOWER,
+    LEMMA,
+    TAG,
+    nn,
+)  # , VerbForm_inf,NounType_com,
+from itertools import chain
+import itertools
+import collections
+from sqlalchemy import create_engine
+from tqdm import tqdm
 import json
 
 import networkx as nx
@@ -69,7 +92,8 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -87,7 +111,8 @@ def log_next_line(lines=1, level=logger.info):
     """
     for i in range(1, lines + 1):
         level(
-            linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + i)
+            linecache.getline(__file__, inspect.getlineno(
+                inspect.currentframe()) + i)
         )
 
 
@@ -95,7 +120,6 @@ def log_next_line(lines=1, level=logger.info):
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
 # This is for terminal
-from tqdm import tqdm
 
 tqdm.pandas(desc="Progress")
 
@@ -103,7 +127,8 @@ tqdm.pandas(desc="Progress")
 sets = json.load(open("./AllSets.json", "rb"))
 # -
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_all_sets = []
 for k, sett in sets.items():
     if (k in ["UGL", "UST", "UNH"]) or (
@@ -148,8 +173,8 @@ mains_col_names = [
 ]
 
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
-from sqlalchemy import create_engine
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 
 engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
 engine.connect()
@@ -167,7 +192,6 @@ in_edges_table_name = "inedges"
 # # Helping functions
 
 # + code_folding=[1]
-import collections
 
 
 def splitDataFrameList(df, target_column, separator=None):
@@ -193,7 +217,8 @@ def splitDataFrameList(df, target_column, separator=None):
             row_accumulator.append(new_row)
 
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(new_rows, target_column, separator))
+    df.apply(splitListToRows, axis=1, args=(
+        new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
@@ -201,7 +226,8 @@ def splitDataFrameList(df, target_column, separator=None):
 # -
 
 # # Create dataframe of cards
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards = cards_all
 cards_df = pd.DataFrame.from_dict(cards)
 cards_df = cards_df.drop_duplicates(subset=["name"])
@@ -234,12 +260,15 @@ def prework_text(card):
     return t
 
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df["text_preworked"] = cards_df.apply(prework_text, axis=1)
 # cards_df['text_preworked']
 
 # +
 # Set land text, which may be empty
+
+
 def add_mana_text(text, sym):
     if not text:
         return "{T}: Add " + sym + "."
@@ -265,13 +294,16 @@ for land_name, sym in lands:
 # -
 
 # Check whether card can add mana
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df["has_add"] = cards_df["text_preworked"].apply(
-    lambda x: True if re.findall(r"add ", str(x), flags=re.IGNORECASE) else False
+    lambda x: True if re.findall(
+        r"add ", str(x), flags=re.IGNORECASE) else False
 )
 
 sep = "ª"
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 if cards_df["text_preworked"].str.contains(sep).any():
     raise Exception("Bad separator symbol. It is contained in some text.")
 
@@ -288,7 +320,8 @@ cards_names = set(cards_df.name.unique())
 
 # +
 # Create set of supertypes
-array_of_supertypes_tuples = cards_df["supertypes"].dropna().apply(tuple).unique()
+array_of_supertypes_tuples = cards_df["supertypes"].dropna().apply(
+    tuple).unique()
 cards_supertypes = tuple()
 for tup in array_of_supertypes_tuples:
     cards_supertypes += tup
@@ -327,7 +360,8 @@ cards_subtypes = set(cards_subtypes)
 #     r.raise_for_status()
 # comprules = r.text
 # -
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 with open("rules.txt", "r", encoding="latin-1") as f:
     comprules = "\n".join(f.readlines())
 
@@ -341,7 +375,8 @@ abilities.sort()
 
 # + code_folding=[]
 # Lets avoid creating a pop node
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts = pd.read_sql_table(cards_text_parts_table_name, engine)
 # -
 
@@ -356,18 +391,19 @@ cards_df_pop_parts = pd.read_sql_table(cards_text_parts_table_name, engine)
 
 # ## Detecting special symbols
 
-import itertools
 
 patt = r"\{.*?\}"
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 t = cards_df_pop_parts["pop"].apply(
-    lambda x: re.findall(patt, str(x)) if re.findall(patt, str(x)) else numpy.nan
+    lambda x: re.findall(patt, str(x)) if re.findall(
+        patt, str(x)) else numpy.nan
 )
 symbols_set = set(itertools.chain.from_iterable(t.dropna()))
 # symbols_set
 
 weird_symbols = []
-worth_ignoring = []  #'{hr}','{½}','{∞}'] # Unglued or similar
+worth_ignoring = []  # '{hr}','{½}','{∞}'] # Unglued or similar
 # worth_ignoring.append('{CHAOS}')
 symbols_explanation = {
     "{S}": {"explanation": "Snow mana", "example_card": "Glacial Plating"},
@@ -395,8 +431,6 @@ if weird_symbols:
     weird_cards = pd.concat(weird_cards)
     weird_cards[mains_col_names]
 
-from itertools import chain
-
 
 def get_increases(text_str, pat=r"([+-][\d+XxYx]{1,4}/[+-][\d+XxYx]{1,4})"):
     """Given a text, extract a pattern and return the extraction or None"""
@@ -404,25 +438,14 @@ def get_increases(text_str, pat=r"([+-][\d+XxYx]{1,4}/[+-][\d+XxYx]{1,4})"):
     return res
 
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 t = cards_df_pop_parts["part"].apply(get_increases)
 pr_increase_symbols = set(chain(*(t.values)))
 # pr_increase_symbols
 
 # # Spacy applied
 
-from spacy.symbols import (
-    ORTH,
-    POS,
-    NOUN,
-    VERB,
-    LOWER,
-    LEMMA,
-    TAG,
-    nn,
-)  # , VerbForm_inf,NounType_com,
-import spacy
-from spacy import displacy
 
 # ## Load model
 
@@ -430,11 +453,10 @@ from spacy import displacy
 MODEL = "en_core_web_sm"
 
 # +
-from spacy.tokens import Token
 
 
 def get_token_sent(token):
-    token_span = token.doc[token.i : token.i + 1]
+    token_span = token.doc[token.i: token.i + 1]
     return token_span.sent
 
 
@@ -446,7 +468,8 @@ except Exception:
 
 # MODEL = r'C:\Users\cs294662\Downloads\programas\spacy\data\en_core_web_md-2.0.0\en_core_web_md\en_core_web_md-2.0.0'
 # MODEL = r'C:\Users\cs294662\Downloads\programas\spacy\data\en_coref_lg-3.0.0\en_coref_lg\en_coref_lg-3.0.0'
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 nlp = spacy.load(MODEL)
 
 # ### Learning
@@ -487,7 +510,8 @@ for sym in symbols_set_valid:
 
     else:
         symbols_set_action.add(sym)
-        nlp.tokenizer.add_special_case(sym, [{ORTH: sym, POS: VERB, TAG: "VB"}])
+        nlp.tokenizer.add_special_case(
+            sym, [{ORTH: sym, POS: VERB, TAG: "VB"}])
 
         # # Mana patterns to match
         # patterns = [[{"UPPER": sym.upper()}]]
@@ -511,9 +535,8 @@ for sym in pr_increase_symbols:
 # ## Create custom entity matcher
 
 # +
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
-from spacy.matcher import PhraseMatcher, Matcher
-from spacy.tokens import Span
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 
 
 class EntityPhraseMatcher(object):
@@ -581,7 +604,8 @@ class EntityMatcher(object):
             # Then, take the longest span and discard the shortest one
             for old_span in spans:
                 if spans_overlaps(span, old_span):
-                    longest, shortest = get_longest_shortest_spans(span, old_span)
+                    longest, shortest = get_longest_shortest_spans(
+                        span, old_span)
                     while shortest in spans:
                         spans.remove(shortest)
                     while longest in spans:
@@ -593,7 +617,8 @@ class EntityMatcher(object):
 
 
 # +
-zones = ["graveyard", "play", "library", "hand", "battlefield", "exile", "stack"]
+zones = ["graveyard", "play", "library",
+         "hand", "battlefield", "exile", "stack"]
 players = ["opponent", "you", "controller", "owner", "player"]
 steps = [
     "upkeep",
@@ -623,8 +648,6 @@ entities["supertypes"] = cards_supertypes
 
 # + code_folding=[]
 # Create hashable dict
-from collections import OrderedDict
-import hashlib
 
 
 class HashableDict(OrderedDict):
@@ -640,7 +663,6 @@ class HashableDict(OrderedDict):
 # +
 # Make defaultdict which depends on its key
 # Source: https://www.reddit.com/r/Python/comments/27crqg/making_defaultdict_create_defaults_that_are_a/
-from collections import defaultdict
 
 
 class key_dependent_dict(defaultdict):
@@ -674,11 +696,13 @@ entity_key_to_hash_map = key_dependent_dict(
     entity_key_hash
 )  # entity key: entity node hash (node_id)
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 for typ in cards_types:
     key = "TYPE: " + typ.lower()
     dict_label_terms[key].append([{"LOWER": t} for t in typ.lower().split()])
-    dict_label_terms[key].append([{"LOWER": t + "s"} for t in typ.lower().split()])
+    dict_label_terms[key].append([{"LOWER": t + "s"}
+                                 for t in typ.lower().split()])
     entity_to_kind_map[key] = "TYPE"
     entity_key_to_hash_map[key] = HashableDict({"entity": key}).hexdigext()
 # TODO define plural for subtypes and types, like elves
@@ -686,13 +710,15 @@ cards_subtypes.add("elves")
 for typ in cards_subtypes:
     key = "SUBTYPE: " + typ.lower()
     dict_label_terms[key].append([{"LOWER": t} for t in typ.lower().split()])
-    dict_label_terms[key].append([{"LOWER": t + "s"} for t in typ.lower().split()])
+    dict_label_terms[key].append([{"LOWER": t + "s"}
+                                 for t in typ.lower().split()])
     entity_to_kind_map[key] = "SUBTYPE"
     entity_key_to_hash_map[key] = HashableDict({"entity": key}).hexdigext()
 for typ in cards_supertypes:
     key = "SUPERTYPE: " + typ.lower()
     dict_label_terms[key].append([{"LOWER": t} for t in typ.lower().split()])
-    dict_label_terms[key].append([{"LOWER": t + "s"} for t in typ.lower().split()])
+    dict_label_terms[key].append([{"LOWER": t + "s"}
+                                 for t in typ.lower().split()])
     entity_to_kind_map[key] = "SUPERTYPE"
     entity_key_to_hash_map[key] = HashableDict({"entity": key}).hexdigext()
 for typ in [
@@ -728,10 +754,12 @@ for zone in zones:
 for player in players:
     key = "PLAYER: " + player.lower()
     dict_label_terms[key].append(
-        [{"LOWER": t, "POS": spacy.symbols.PRON} for t in player.lower().split()]
+        [{"LOWER": t, "POS": spacy.symbols.PRON}
+            for t in player.lower().split()]
     )
     dict_label_terms[key].append(
-        [{"LOWER": t, "POS": spacy.symbols.NOUN} for t in player.lower().split()]
+        [{"LOWER": t, "POS": spacy.symbols.NOUN}
+            for t in player.lower().split()]
     )
     entity_to_kind_map[key] = "PLAYER"
     entity_key_to_hash_map[key] = HashableDict({"entity": key}).hexdigext()
@@ -761,19 +789,22 @@ for sym in pr_increase_symbols:
 
 for sym in ["counter", "card"]:
     key = "OBJECT: " + sym.lower()
-    dict_label_terms[key].append([{"LOWER": t, "POS": NOUN} for t in sym.split()])
+    dict_label_terms[key].append(
+        [{"LOWER": t, "POS": NOUN} for t in sym.split()])
     entity_to_kind_map[key] = "OBJECT"
     entity_key_to_hash_map[key] = HashableDict({"entity": key}).hexdigext()
 
 for sym in ["spell", "hability", "land"]:
     key = "NATURE: " + sym.lower()
-    dict_label_terms[key].append([{"LOWER": t, "POS": NOUN} for t in sym.split()])
+    dict_label_terms[key].append(
+        [{"LOWER": t, "POS": NOUN} for t in sym.split()])
     entity_to_kind_map[key] = "NATURE"
     entity_key_to_hash_map[key] = HashableDict({"entity": key}).hexdigext()
 
 for sym in ["self"]:
     key = "SELF: " + sym.lower()
-    dict_label_terms[key].append([{"LOWER": t, "POS": NOUN} for t in sym.split()])
+    dict_label_terms[key].append(
+        [{"LOWER": t, "POS": NOUN} for t in sym.split()])
     entity_to_kind_map[key] = "SELF"
     entity_key_to_hash_map[key] = HashableDict({"entity": key}).hexdigext()
 
@@ -789,7 +820,8 @@ try:
 except Exception:
     nlp.add_pipe(entity_matcher)
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 logger.info(nlp.pipe_names)  # see all components in the pipeline
 
 
@@ -963,7 +995,8 @@ shapes = [
     "exagon",
     "star",
 ]
-colors = ["blue", "black", "red", "#db8625", "green", "gray", "cyan", "#ed125b"]
+colors = ["blue", "black", "red", "#db8625",
+          "green", "gray", "cyan", "#ed125b"]
 styles = ["filled", "rounded", "rounded, filled", "dashed", "dotted, bold"]
 
 entities_colors = {
@@ -1029,7 +1062,8 @@ def draw_graph(G, filename="test.png"):
 # REQUIRES TESTING
 # Objective: card_id -> part -> root -> (children) -> entities
 
-pop_defining_cols = ["card_id", "paragraph_order", "pop_order", "pop_type", "pop"]
+pop_defining_cols = ["card_id", "paragraph_order",
+                     "pop_order", "pop_type", "pop"]
 part_defining_cols = [
     "card_id",
     "paragraph_order",
@@ -1040,23 +1074,25 @@ part_defining_cols = [
     "part",
 ]
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 # Work on full cards_df_pop_parts (cards_df was probably filtered right at the beginning)
 unique_card_ids = cards_df_pop_parts["card_id"].unique()
 chunksize = 50
-import datetime
 
 start = datetime.datetime.now()
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 for i in tqdm(range(unique_card_ids.shape[0] // chunksize)):
 
     if not ((i + 1) * chunksize) % (10 * chunksize):
         clear_output()
     logger.info(
-        "Working on {0} from {1}".format((i + 1) * chunksize, unique_card_ids.shape[0])
+        "Working on {0} from {1}".format(
+            (i + 1) * chunksize, unique_card_ids.shape[0])
     )
 
-    this_batch_ids = unique_card_ids[i * chunksize : (i + 1) * chunksize]
+    this_batch_ids = unique_card_ids[i * chunksize: (i + 1) * chunksize]
     cards_df_for_graph = cards_df_pop_parts[
         cards_df_pop_parts["card_id"].isin(this_batch_ids)
     ].copy()
@@ -1077,7 +1113,8 @@ for i in tqdm(range(unique_card_ids.shape[0] // chunksize)):
     # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Join with cards_df to get a few more details
     cdfg = cards_df_for_graph
-    cdfg = cards_df_for_graph.merge(cards_df, left_on=["card_id"], right_index=True)
+    cdfg = cards_df_for_graph.merge(
+        cards_df, left_on=["card_id"], right_index=True)
 
     # Try different approach: build node by node
 
@@ -1123,7 +1160,8 @@ for i in tqdm(range(unique_card_ids.shape[0] // chunksize)):
         ),
         axis=1,
     )
-    nodes_attr["token"] = [x for x in nodes["token"].columns if x not in ["node_id"]]
+    nodes_attr["token"] = [
+        x for x in nodes["token"].columns if x not in ["node_id"]]
 
     # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Entity nodes
@@ -1148,7 +1186,8 @@ for i in tqdm(range(unique_card_ids.shape[0] // chunksize)):
         ),
         axis=1,
     )
-    nodes_attr["entity"] = [x for x in nodes["entity"].columns if x not in ["node_id"]]
+    nodes_attr["entity"] = [
+        x for x in nodes["entity"].columns if x not in ["node_id"]]
 
     # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Part nodes
@@ -1171,7 +1210,8 @@ for i in tqdm(range(unique_card_ids.shape[0] // chunksize)):
     nodes["part"]["label"] = nodes["part"].apply(
         lambda x: "-".join([x["part"]]), axis=1
     )
-    nodes_attr["part"] = [x for x in nodes["part"].columns if x not in ["node_id"]]
+    nodes_attr["part"] = [
+        x for x in nodes["part"].columns if x not in ["node_id"]]
 
     # Pop nodes (avoided)
     # nodes_cols['pop'] = ['pop_node',
@@ -1193,12 +1233,14 @@ for i in tqdm(range(unique_card_ids.shape[0] // chunksize)):
     nodes["card"] = cdfg[nodes_cols["card"]]
     nodes["card"] = nodes["card"].rename(columns={"name": "card_name"})
     nodes["card"]["node_id"] = nodes["card"]["card_id"]
-    nodes["card"] = nodes["card"].dropna(subset=["node_id", "card_name"], how="any")
+    nodes["card"] = nodes["card"].dropna(
+        subset=["node_id", "card_name"], how="any")
     nodes["card"]["type"] = "card"
     nodes["card"]["label"] = nodes["card"].apply(
         lambda x: "-".join([x["card_name"]]), axis=1
     )
-    nodes_attr["card"] = [x for x in nodes["card"].columns if x not in ["node_id"]]
+    nodes_attr["card"] = [
+        x for x in nodes["card"].columns if x not in ["node_id"]]
 
     # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # EDGES #########################################
@@ -1359,7 +1401,8 @@ for i in tqdm(range(unique_card_ids.shape[0] // chunksize)):
 
     # logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
     # Build dfs
-    nodes_df = pd.concat(nodes.values(), sort=True).drop_duplicates(subset=["node_id"])
+    nodes_df = pd.concat(nodes.values(), sort=True).drop_duplicates(
+        subset=["node_id"])
     nodes_df = nodes_df.dropna(
         subset=[x for x in nodes_df.columns if not x in ["node_id", "label"]], how="all"
     )
@@ -1417,7 +1460,8 @@ for i in tqdm(range(unique_card_ids.shape[0] // chunksize)):
 # Objective: card_id <- entities (attributes)
 
 # cdfg=cards_df_for_graph
-cdfg = cards_df  # cards_df_for_graph.merge(cards_df, left_on=['card_id'], right_index=True)
+# cards_df_for_graph.merge(cards_df, left_on=['card_id'], right_index=True)
+cdfg = cards_df
 cdfg["card_id"] = cdfg.index
 # cdfg
 
@@ -1427,7 +1471,8 @@ nodes_card_df = cdfg[
     ["card_id", "supertypes", "types", "subtypes", "colors", "manaCost"]
 ].copy()
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 # Generate df with card_id and entity_node_id refering to card's type, color, supertype, etc.
 res = []
 for col in nodes_card_df:
@@ -1467,7 +1512,8 @@ res["edge_type"] = "entity_to_card"
 res.sample(5)
 # -
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 cdfg = pd.concat([res, cdfg], sort=False).copy()
 # cdfg['name'] = cdfg['card_name']
 
@@ -1510,7 +1556,8 @@ nodes["entity"]["label"] = nodes["entity"].apply(
     ),
     axis=1,
 )
-nodes_attr["entity"] = [x for x in nodes["entity"].columns if x not in ["node_id"]]
+nodes_attr["entity"] = [
+    x for x in nodes["entity"].columns if x not in ["node_id"]]
 
 
 # Card nodes
@@ -1518,7 +1565,8 @@ nodes_cols["card"] = ["card_id"] + mains_col_names
 nodes["card"] = cdfg[nodes_cols["card"]]
 nodes["card"] = nodes["card"].rename(columns={"name": "card_name"})
 nodes["card"]["node_id"] = nodes["card"]["card_id"]
-nodes["card"] = nodes["card"].dropna(subset=["node_id", "card_name"], how="any")
+nodes["card"] = nodes["card"].dropna(
+    subset=["node_id", "card_name"], how="any")
 nodes["card"]["type"] = "card"
 nodes["card"]["label"] = nodes["card"].apply(
     lambda x: "-".join([x["card_name"]]), axis=1
@@ -1557,7 +1605,8 @@ edges_attr["entity_to_card"] = [
 ]
 
 # Build dfs
-nodes_df = pd.concat(nodes.values(), sort=True).drop_duplicates(subset=["node_id"])
+nodes_df = pd.concat(nodes.values(), sort=True).drop_duplicates(
+    subset=["node_id"])
 nodes_df = nodes_df.dropna(
     subset=[x for x in nodes_df.columns if not x in ["node_id", "label"]], how="all"
 )

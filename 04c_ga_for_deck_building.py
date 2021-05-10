@@ -20,6 +20,14 @@
 # **DESIRED RESULT**:
 # Given a set of cards, a deck list with cards within that set.
 
+import random
+from deap import tools
+from deap import creator
+from deap import base
+from deap import algorithms
+import sqlalchemy
+from sqlalchemy import create_engine
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
 import re
@@ -40,7 +48,8 @@ generate a next generation of X decks. You can choose how many generations you w
 ''')
 
 try:
-    if __file__: pass
+    if __file__:
+        pass
 except NameError:
     # for running in ipython
     fname = '04c_ga_for_deck_building.py'
@@ -58,7 +67,8 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -69,22 +79,21 @@ logger.addHandler(ch)
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
 # This is for terminal
-from tqdm import tqdm
 tqdm.pandas(desc="Progress")
 
 # # Params
 
-from sqlalchemy import create_engine
-import sqlalchemy
 
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
 INITIAL_SETS = ['TMP', 'EXO', 'STH']
 INITIAL_SETS = ','.join([f"'{x}'" for x in INITIAL_SETS])
 
-st.write(f'At first, we are considering only {INITIAL_SETS} as collections to build the deck from.')
+st.write(
+    f'At first, we are considering only {INITIAL_SETS} as collections to build the deck from.')
 
 df_card_pool = pd.read_sql_query(f'''
    SELECT * 
@@ -101,7 +110,8 @@ df_card_pool = df_card_pool[df_card_pool['colors'].isin(['{W}', '{}'])]
 logger.info(f'df_card_pool shape: {df_card_pool.shape}')
 
 # Create 4 copies of each card, for us to be able to have at most 4 copies of each in a deck
-df_card_pool = pd.concat([df_card_pool for x in range(4)]).reset_index(drop=True)
+df_card_pool = pd.concat(
+    [df_card_pool for x in range(4)]).reset_index(drop=True)
 
 # initial number of cards in the decks
 IND_INIT_SIZE = 36
@@ -198,8 +208,10 @@ class DeckVal:
 
     def get_colors_set(self):
 
-        self.df['colors_set'] = self.df['colors'].apply(lambda x: set(re.findall('([A-Z]){1}', x)))
-        self.colors_set = functools.reduce(lambda a, b: a.union(b), self.df['colors_set'].values, set())
+        self.df['colors_set'] = self.df['colors'].apply(
+            lambda x: set(re.findall('([A-Z]){1}', x)))
+        self.colors_set = functools.reduce(
+            lambda a, b: a.union(b), self.df['colors_set'].values, set())
         return self.colors_set
 
     def assign_individual_base_points(self):
@@ -207,7 +219,8 @@ class DeckVal:
         (unlike synergy and competitiveness points).
         It can be a function of power, toughness, effects, abilities, etc."""
 
-        self.df['ibp'] = (self.df['power_num'] + self.df['toughness_num'])  # /self.df['cmc']
+        self.df['ibp'] = (self.df['power_num'] +
+                          self.df['toughness_num'])  # /self.df['cmc']
         return self.df
 
     def compute_deck_stats(self):
@@ -265,7 +278,7 @@ class DeckVal:
             deck_df.pivot_table(
                 index=['name'], values=['id'], aggfunc=lambda x: x.count()
             )
-                .merge(
+            .merge(
                 deck_df.pivot_table(
                     index=['name'], values=['power_num', 'toughness_num'], aggfunc=np.sum
                 ), left_index=True, right_index=True
@@ -278,7 +291,8 @@ class DeckVal:
 
         logger.info(f'{self.colors_count} color: {self.colors_set}')
 
-def get_deck_val(set_of_ids, df = df_card_pool):
+
+def get_deck_val(set_of_ids, df=df_card_pool):
     return DeckVal(df[df.index.isin(set_of_ids)])
 
 #    This file is part of DEAP.
@@ -300,12 +314,6 @@ def get_deck_val(set_of_ids, df = df_card_pool):
 # https://deap.readthedocs.io/en/master/examples/ga_knapsack.html
 # https://en.wikipedia.org/wiki/Knapsack_problem
 
-import random
-
-from deap import algorithms
-from deap import base
-from deap import creator
-from deap import tools
 
 # To assure reproductibility, the RNG seed is set prior to the items
 # dict initialization. It is also seeded in main().
@@ -363,6 +371,8 @@ def cxSet(ind1, ind2):
 # Testing if adding black ony ids works
 # black_ids = list(set(df_card_pool[df_card_pool['colors'] == '{B}'].index))
 # TODO mutation strategy requires deep thought
+
+
 def mutSet(deck):
     """Mutation that pops or add an element."""
     if random.random() < 0.5:

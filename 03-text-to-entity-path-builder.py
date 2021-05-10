@@ -34,6 +34,15 @@
 # | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 # | a2fh34 | 0 | 1 | 1 | TYPE: Instant | activated | effect | intensifier | pobj | for | destroy |
 
+import networkx as nx
+import datetime
+from networkx.readwrite import json_graph
+import hashlib
+from collections import OrderedDict
+import collections
+import sqlalchemy
+from sqlalchemy import create_engine
+from tqdm import tqdm
 import json
 import pandas as pd
 import numpy
@@ -57,12 +66,14 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(fh)
 logger.addHandler(ch)
+
 
 def log_next_line(lines=1, level=logger.info):
     '''
@@ -73,29 +84,30 @@ def log_next_line(lines=1, level=logger.info):
     :return: None, but logs stuff
     '''
     for i in range(1, lines+1):
-        level(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + i))
+        level(linecache.getline(
+            __file__, inspect.getlineno(inspect.currentframe()) + i))
+
 
 # This is for jupyter notebook
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
 # This is for terminal
-from tqdm import tqdm
 tqdm.pandas(desc="Progress")
 
 # # Params
 
-from sqlalchemy import create_engine
-import sqlalchemy
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
 # # Helping functions
 
 # + code_folding=[0]
 # Split dataframelist
-import collections
-def splitDataFrameList(df,target_column,separator=None):
+
+
+def splitDataFrameList(df, target_column, separator=None):
     '''
     https://gist.github.com/jlln/338b4b0b55bd6984f883
     df = dataframe to split,
@@ -104,8 +116,8 @@ def splitDataFrameList(df,target_column,separator=None):
     returns: a dataframe with each entry for the target column separated, with each element moved into a new row. 
     The values in the other columns are duplicated across the newly divided rows.
     '''
-    def splitListToRows(row,row_accumulator,target_column,separator):
-        split_row = row[target_column]#.split(separator)
+    def splitListToRows(row, row_accumulator, target_column, separator):
+        split_row = row[target_column]  # .split(separator)
         if isinstance(split_row, collections.Iterable):
             for s in split_row:
                 new_row = row.to_dict()
@@ -116,19 +128,20 @@ def splitDataFrameList(df,target_column,separator=None):
             new_row[target_column] = numpy.nan
             row_accumulator.append(new_row)
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(new_rows,target_column,separator))
+    df.apply(splitListToRows, axis=1, args=(
+        new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
 
 # + code_folding=[0]
 # Create hashable dict
-from collections import OrderedDict
-import hashlib
+
+
 class HashableDict(OrderedDict):
     def __hash__(self):
         return hash(tuple(sorted(self.items())))
-    
+
     def hexdigext(self):
         return hashlib.sha256(''.join([str(k)+str(v) for k, v in self.items()]).encode()).hexdigest()
 
@@ -136,24 +149,29 @@ class HashableDict(OrderedDict):
 # + code_folding=[0]
 # Make defaultdict which depends on its key
 # Source: https://www.reddit.com/r/Python/comments/27crqg/making_defaultdict_create_defaults_that_are_a/
-from collections import defaultdict
+
+
 class key_dependent_dict(defaultdict):
     def __init__(self, f_of_x):
-        super().__init__(None) # base class doesn't get a factory
-        self.f_of_x = f_of_x # save f(x)
-    def __missing__(self, key): # called when a default needed
-        ret = self.f_of_x(key) # calculate default value
-        self[key] = ret # and install it in the dict
+        super().__init__(None)  # base class doesn't get a factory
+        self.f_of_x = f_of_x  # save f(x)
+
+    def __missing__(self, key):  # called when a default needed
+        ret = self.f_of_x(key)  # calculate default value
+        self[key] = ret  # and install it in the dict
         return ret
-    
+
+
 def entity_key_hash(key):
     return HashableDict({'entity': key}).hexdigext()
 
 
 # + code_folding=[0]
 # function to draw a graph to png
-shapes = ['box', 'polygon', 'ellipse', 'oval', 'circle', 'egg', 'triangle', 'exagon', 'star']
-colors = ['blue', 'black', 'red', '#db8625', 'green', 'gray', 'cyan', '#ed125b']
+shapes = ['box', 'polygon', 'ellipse', 'oval',
+          'circle', 'egg', 'triangle', 'exagon', 'star']
+colors = ['blue', 'black', 'red', '#db8625',
+          'green', 'gray', 'cyan', '#ed125b']
 styles = ['filled', 'rounded', 'rounded, filled', 'dashed', 'dotted, bold']
 
 entities_colors = {
@@ -169,9 +187,9 @@ entities_colors = {
     'STEP': '#E0E0F8'
 }
 
+
 def draw_graph(G, filename='test.png'):
     pdot = nx.drawing.nx_pydot.to_pydot(G)
-
 
     for i, node in enumerate(pdot.get_nodes()):
         attrs = node.get_attributes()
@@ -183,19 +201,19 @@ def draw_graph(G, filename='test.png'):
             node.set_fillcolor(color)
             node.set_color(color)
             node.set_shape('hexagon')
-            #node.set_colorscheme()
+            # node.set_colorscheme()
             node.set_style('filled')
-        
+
         node_type = attrs.get('type', None)
         if node_type == '"card"':
             color = '#999966'
             node.set_fillcolor(color)
 #             node.set_color(color)
             node.set_shape('star')
-            #node.set_colorscheme()
+            # node.set_colorscheme()
             node.set_style('filled')
-    #     
-        #pass
+    #
+        # pass
 
     for i, edge in enumerate(pdot.get_edges()):
         att = edge.get_attributes()
@@ -214,15 +232,8 @@ def draw_graph(G, filename='test.png'):
 
 # # Build graph with Networkx
 
-import networkx as nx
-import re
-
-from networkx.readwrite import json_graph
-import json
-import datetime
 
 # ### Get paths from cards_text to entities (simple paths from text -> entities)
-
 # + deletable=false editable=false run_control={"frozen": true}
 with engine.connect() as con:
     try:
@@ -238,10 +249,11 @@ to_table_name = 'cards_text_to_entity_simple_paths'
 chunk_size = 200
 
 all_ids = pd.read_sql_query('SELECT card_id from {0}'.
-                       format(table_name),
-                       engine,
-                      )
-chunks = [all_ids.iloc[all_ids.index[i:i + chunk_size]] for i in range(0, all_ids.shape[0], chunk_size)]
+                            format(table_name),
+                            engine,
+                            )
+chunks = [all_ids.iloc[all_ids.index[i:i + chunk_size]]
+          for i in range(0, all_ids.shape[0], chunk_size)]
 
 
 # + code_folding=[]
@@ -251,8 +263,8 @@ def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
     if not row['outgoing']:
         return []
     G = json_graph.node_link_graph(json.loads(row['outgoing']))
-    card_nodes = [x for x,y in G.nodes(data=True) if y['type']=='card']
-    entity_nodes = [x for x,y in G.nodes(data=True) if y['type']=='entity']
+    card_nodes = [x for x, y in G.nodes(data=True) if y['type'] == 'card']
+    entity_nodes = [x for x, y in G.nodes(data=True) if y['type'] == 'entity']
     assert len(card_nodes) == 1
 
     new_rows = []
@@ -263,11 +275,13 @@ def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
             path_g = G.subgraph(path)
 
             graph_row['card_id'] = row['card_id']
-            graph_row['path_graph_json'] = json.dumps(json_graph.node_link_data(path_g))
+            graph_row['path_graph_json'] = json.dumps(
+                json_graph.node_link_data(path_g))
             graph_row['part'] = G.nodes[path[1]]['part']
-            has_add = re.findall(r'add ', str(graph_row['part']), flags=re.IGNORECASE)
+            has_add = re.findall(r'add ', str(
+                graph_row['part']), flags=re.IGNORECASE)
             graph_row['has_add'] = True if has_add else False
-                
+
             # Text type and orders
     #         graph_row['paragraph_type'] = G.node[path[1]]['paragraph_type']
             graph_row['paragraph_order'] = G.nodes[path[1]]['paragraph_order']
@@ -275,22 +289,30 @@ def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
             graph_row['pop_order'] = G.nodes[path[1]]['pop_order']
             graph_row['part_type'] = G.nodes[path[1]]['part_type']
             graph_row['part_order'] = G.nodes[path[1]]['part_order']
-            
+
             graph_row['path_text_key'] = (graph_row['card_id']
-                                    +'-'+str(int(graph_row['paragraph_order']))
-                                    +'-'+str(int(graph_row['pop_order']))
-                                    +'-'+str(int(graph_row['part_order']))
-                                   )
+                                          + '-' +
+                                          str(int(
+                                              graph_row['paragraph_order']))
+                                          + '-' +
+                                          str(int(graph_row['pop_order']))
+                                          + '-' +
+                                          str(int(graph_row['part_order']))
+                                          )
 
             # Entities info
-            graph_row['entity_node_entity'] = G.nodes[path[-1]]['entity_node_entity']
-            graph_row['entity_node_ent_type'] = G.nodes[path[-1]]['entity_node_ent_type']
-            graph_row['entity_node_desc'] = G.nodes[path[-1]]['entity_node_desc']
-            graph_row['entity_node_lemma'] = G.nodes[path[-1]]['entity_node_lemma']
-            
+            graph_row['entity_node_entity'] = G.nodes[path[-1]
+                                                      ]['entity_node_entity']
+            graph_row['entity_node_ent_type'] = G.nodes[path[-1]
+                                                        ]['entity_node_ent_type']
+            graph_row['entity_node_desc'] = G.nodes[path[-1]
+                                                    ]['entity_node_desc']
+            graph_row['entity_node_lemma'] = G.nodes[path[-1]
+                                                     ]['entity_node_lemma']
+
             graph_row['path_pk'] = (graph_row['path_text_key']
-                                    +'-'+graph_row['entity_node_entity']
-                                   )
+                                    + '-'+graph_row['entity_node_entity']
+                                    )
 
             graph_row['entity_pos'] = G.nodes[path[-2]]['token_node_pos']
             graph_row['entity_tag'] = G.nodes[path[-2]]['token_node_tag']
@@ -299,16 +321,18 @@ def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
             # Entities head info
             if G.nodes[path[-3]]['type'] == 'token':
                 graph_row['entity_head'] = G.nodes[path[-3]]['token_node_text']
-                graph_row['entity_head_tag'] = G.nodes[path[-3]]['token_node_tag']
-                graph_row['entity_head_head_dep'] = G.nodes[path[-2]]['token_head_dep']
-                graph_row['entity_head_pos'] = G.nodes[path[-2]]['token_node_pos']
-
-
+                graph_row['entity_head_tag'] = G.nodes[path[-3]
+                                                       ]['token_node_tag']
+                graph_row['entity_head_head_dep'] = G.nodes[path[-2]
+                                                            ]['token_head_dep']
+                graph_row['entity_head_pos'] = G.nodes[path[-2]
+                                                       ]['token_node_pos']
 
             # Append row
             new_rows.append(graph_row)
-    
+
     return pd.DataFrame(new_rows)
+
 
 # + code_folding=[0] deletable=false editable=false run_control={"frozen": true}
 # # Testing dataframe composition
@@ -352,36 +376,41 @@ def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
 #             graph_row['entity_head_tag'] = G.node[path[-3]]['token_node_tag']
 #             graph_row['entity_head_head_dep'] = G.node[path[-2]]['token_head_dep']
 #             graph_row['entity_head_pos'] = G.node[path[-2]]['token_node_pos']
-#             
+#
 #
 #
 #         # Append row
 #         new_rows.append(graph_row)
 # n = pd.DataFrame(new_rows)
 # -
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 df = pd.read_sql_query('SELECT * from {0} WHERE card_id IN ({1})'.
-                           format(table_name, ','.join(["'"+x+"'" for x in chunks[0]['card_id']])),
-                           engine,
-                          index_col='card_id')
+                       format(table_name, ','.join(
+                           ["'"+x+"'" for x in chunks[0]['card_id']])),
+                       engine,
+                       index_col='card_id')
 
 
 # + code_folding=[]
 # Iter chunks and save simple paths
 start = datetime.datetime.now()
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 for i, chunk in enumerate(chunks):
 
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+    logger.info(linecache.getline(
+        __file__, inspect.getlineno(inspect.currentframe()) + 1))
     df = pd.read_sql_query('SELECT * from {0} WHERE card_id IN ({1})'.
-                           format(table_name, ','.join(["'"+x+"'" for x in chunk['card_id']])),
+                           format(table_name, ','.join(
+                               ["'"+x+"'" for x in chunk['card_id']])),
                            engine,
-                          )
-    
-    logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+                           )
+
+    logger.info(linecache.getline(
+        __file__, inspect.getlineno(inspect.currentframe()) + 1))
     paths_series = df.progress_apply(
         get_df_for_subgraphs_of_paths_from_card_to_entities, axis='columns')
-
 
     # Drop these ids to append them again
 #     DROP_QUERY = ('DELETE FROM {0} WHERE card_id IN ({1})'.
@@ -403,15 +432,17 @@ for i, chunk in enumerate(chunks):
     df = (pd.concat(paths_series.values, sort=False)
           .reset_index(drop=True)
           .set_index(['card_id', 'paragraph_order', 'pop_order', 'part_order', 'entity_node_entity'])
-         )
-    
+          )
+
     method = 'append' if i else 'replace'
     df.to_sql(to_table_name, engine, if_exists=method,
-                  dtype = {'path_graph_json':sqlalchemy.types.JSON})
+              dtype={'path_graph_json': sqlalchemy.types.JSON})
 
-    logger.info('Chunk {0}/{1} ELAPSED: {2}'.format(i, len(chunks), datetime.datetime.now()-start))
+    logger.info('Chunk {0}/{1} ELAPSED: {2}'.format(i,
+                len(chunks), datetime.datetime.now()-start))
     logger.info('Export finished')
-    if not i % 15: clear_output()
+    if not i % 15:
+        clear_output()
 
 
 # + code_folding=[0] deletable=false editable=false hideCode=false run_control={"frozen": true}

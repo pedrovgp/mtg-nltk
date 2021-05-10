@@ -34,6 +34,19 @@
 #           }
 # -
 
+from networkx.readwrite import json_graph
+import tqdm
+from multiprocessing import Pool
+import functions
+import networkx as nx
+import datetime
+import json
+import hashlib
+from collections import OrderedDict
+import collections
+import sqlalchemy
+from sqlalchemy import create_engine
+from tqdm import tqdm
 import pandas as pd
 import numpy
 from collections import defaultdict
@@ -54,12 +67,14 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(fh)
 logger.addHandler(ch)
+
 
 def log_next_line(lines=1, level=logger.info):
     '''
@@ -70,23 +85,23 @@ def log_next_line(lines=1, level=logger.info):
     :return: None, but logs stuff
     '''
     for i in range(1, lines+1):
-        level(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + i))
+        level(linecache.getline(
+            __file__, inspect.getlineno(inspect.currentframe()) + i))
+
 
 # This is for jupyter notebook
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
 # tqdm_func = tqdm_notebook
 # This is for terminal
-from tqdm import tqdm
 tqdm.pandas(desc="Progress")
 tqdm_func = tqdm
 
 # # Params
 
-from sqlalchemy import create_engine
-import sqlalchemy
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
 out_nodes_table_name = 'outnodes'
@@ -97,8 +112,10 @@ in_edges_table_name = 'inedges'
 cards_graphs_as_json_to_table = 'cards_graphs_as_json_temp'
 
 # # Create dataframe of cards
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
-out_nodes = pd.read_sql_table(out_nodes_table_name, engine, columns=['card_id', 'card_name', 'type'])
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
+out_nodes = pd.read_sql_table(out_nodes_table_name, engine, columns=[
+                              'card_id', 'card_name', 'type'])
 # out_edges = pd.read_sql_table(out_edges_table_name, engine)
 # in_nodes = pd.read_sql_table(in_nodes_table_name, engine)
 # in_edges = pd.read_sql_table(in_edges_table_name, engine)
@@ -110,16 +127,18 @@ out_nodes = pd.read_sql_table(out_nodes_table_name, engine, columns=['card_id', 
 # -
 
 # There is no need to build a graph for the same named card twice
-unique_cards = out_nodes[out_nodes['type']=='card'].drop_duplicates(subset=['card_name'])
+unique_cards = out_nodes[out_nodes['type'] ==
+                         'card'].drop_duplicates(subset=['card_name'])
 
-ids_to_process = unique_cards['card_id']#.sample(11)
+ids_to_process = unique_cards['card_id']  # .sample(11)
 
 # # Helping functions
 
 # + code_folding=[0]
 # Split dataframelist
-import collections
-def splitDataFrameList(df,target_column,separator=None):
+
+
+def splitDataFrameList(df, target_column, separator=None):
     '''
     https://gist.github.com/jlln/338b4b0b55bd6984f883
     df = dataframe to split,
@@ -128,8 +147,8 @@ def splitDataFrameList(df,target_column,separator=None):
     returns: a dataframe with each entry for the target column separated, with each element moved into a new row. 
     The values in the other columns are duplicated across the newly divided rows.
     '''
-    def splitListToRows(row,row_accumulator,target_column,separator):
-        split_row = row[target_column]#.split(separator)
+    def splitListToRows(row, row_accumulator, target_column, separator):
+        split_row = row[target_column]  # .split(separator)
         if isinstance(split_row, collections.Iterable):
             for s in split_row:
                 new_row = row.to_dict()
@@ -140,19 +159,20 @@ def splitDataFrameList(df,target_column,separator=None):
             new_row[target_column] = numpy.nan
             row_accumulator.append(new_row)
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(new_rows,target_column,separator))
+    df.apply(splitListToRows, axis=1, args=(
+        new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
 
 # + code_folding=[0]
 # Create hashable dict
-from collections import OrderedDict
-import hashlib
+
+
 class HashableDict(OrderedDict):
     def __hash__(self):
         return hash(tuple(sorted(self.items())))
-    
+
     def hexdigext(self):
         return hashlib.sha256(''.join([str(k)+str(v) for k, v in self.items()]).encode()).hexdigest()
 
@@ -160,24 +180,29 @@ class HashableDict(OrderedDict):
 # + code_folding=[0]
 # Make defaultdict which depends on its key
 # Source: https://www.reddit.com/r/Python/comments/27crqg/making_defaultdict_create_defaults_that_are_a/
-from collections import defaultdict
+
+
 class key_dependent_dict(defaultdict):
     def __init__(self, f_of_x):
-        super().__init__(None) # base class doesn't get a factory
-        self.f_of_x = f_of_x # save f(x)
-    def __missing__(self, key): # called when a default needed
-        ret = self.f_of_x(key) # calculate default value
-        self[key] = ret # and install it in the dict
+        super().__init__(None)  # base class doesn't get a factory
+        self.f_of_x = f_of_x  # save f(x)
+
+    def __missing__(self, key):  # called when a default needed
+        ret = self.f_of_x(key)  # calculate default value
+        self[key] = ret  # and install it in the dict
         return ret
-    
+
+
 def entity_key_hash(key):
     return HashableDict({'entity': key}).hexdigext()
 
 
 # + code_folding=[0]
 # function to draw a graph to png
-shapes = ['box', 'polygon', 'ellipse', 'oval', 'circle', 'egg', 'triangle', 'exagon', 'star']
-colors = ['blue', 'black', 'red', '#db8625', 'green', 'gray', 'cyan', '#ed125b']
+shapes = ['box', 'polygon', 'ellipse', 'oval',
+          'circle', 'egg', 'triangle', 'exagon', 'star']
+colors = ['blue', 'black', 'red', '#db8625',
+          'green', 'gray', 'cyan', '#ed125b']
 styles = ['filled', 'rounded', 'rounded, filled', 'dashed', 'dotted, bold']
 
 entities_colors = {
@@ -193,9 +218,9 @@ entities_colors = {
     'STEP': '#E0E0F8'
 }
 
+
 def draw_graph(G, filename='test.png'):
     pdot = nx.drawing.nx_pydot.to_pydot(G)
-
 
     for i, node in enumerate(pdot.get_nodes()):
         attrs = node.get_attributes()
@@ -207,19 +232,19 @@ def draw_graph(G, filename='test.png'):
             node.set_fillcolor(color)
             node.set_color(color)
             node.set_shape('hexagon')
-            #node.set_colorscheme()
+            # node.set_colorscheme()
             node.set_style('filled')
-        
+
         node_type = attrs.get('type', None)
         if node_type == '"card"':
             color = '#999966'
             node.set_fillcolor(color)
 #             node.set_color(color)
             node.set_shape('star')
-            #node.set_colorscheme()
+            # node.set_colorscheme()
             node.set_style('filled')
-    #     
-        #pass
+    #
+        # pass
 
     for i, edge in enumerate(pdot.get_edges()):
         att = edge.get_attributes()
@@ -238,10 +263,6 @@ def draw_graph(G, filename='test.png'):
 
 # # Build graph with Networkx
 
-from networkx.readwrite import json_graph
-import json
-import datetime
-import networkx as nx
 
 # ## One process (takes 5 hours)
 
@@ -262,34 +283,34 @@ import networkx as nx
 # import os.path
 #
 # for i, card_id in enumerate(ids_to_process):
-#         
+#
 #     path_to_graph_file = cards_graph_dir+card_id
 #     if os.path.isfile(path_to_graph_file):
 #     #if i < 15890:
 #         continue
-#         
+#
 #     result[card_id] = {}
 #     if not i%100:
 #         clear_output()
 #     else:
 #         if not i%10:
 #             print('{0}/{1} cards processed'.format(i, ids_to_process.shape[0]))
-#     
+#
 #     # Card nodes
 #     #card_0_nodes = out_nodes[(out_nodes['card_id']==card_id)
 #     #                        |(out_nodes['type']=='entity')]
 #     card_0_nodes = out_nodes[(out_nodes['card_id']==card_id)]
 #     card_0_edges = out_edges[(out_edges['source'].isin(card_0_nodes['node_id']))
 #                             |(out_edges['target'].isin(card_0_nodes['node_id']))]
-#     
+#
 #     # Relevant entity nodes
 #     ent_0_nodes = ent_out_nodes[ent_out_nodes['node_id'].isin(card_0_edges['source'])
 #                                  |ent_out_nodes['node_id'].isin(card_0_edges['target'])]
 #
 #     card_0_nodes = pd.concat([card_0_nodes, ent_0_nodes], sort=False)
-#     
+#
 #     #result[card_id] = {'nodes': card_0_nodes.copy(), 'edges': card_0_edges.copy()}
-#     
+#
 #     # Build graph
 #     edge_attr = [x for x in card_0_edges.columns if not x in ['source', 'target']]
 #     G = nx.from_pandas_edgelist(card_0_edges,
@@ -297,9 +318,9 @@ import networkx as nx
 #                                 target='target',
 #                                 edge_attr=edge_attr,
 #                                 create_using=nx.DiGraph())
-#     
+#
 #     ###### IN NODES
-#     
+#
 #     # NODES (set attributes)
 #     for k in card_0_nodes['type'].unique():
 #         #print(k)
@@ -314,22 +335,22 @@ import networkx as nx
 #             # Eliminate and wrap in quotes
 #             temp[node_attr] = temp[node_attr].apply(eliminate_and_wrap_in_quotes)
 #             nx.set_node_attributes(G, pd.Series(temp[node_attr].values, index=temp[node_col].values).copy().to_dict(), name=node_attr)
-#     
+#
 #     result[card_id]['outgoing'] = G
-#     
+#
 #     # Card nodes
 #     card_0_in_nodes = in_nodes[(in_nodes['card_id']==card_id)]
 #     card_0_in_edges = in_edges[(in_edges['source'].isin(card_0_in_nodes['node_id']))
 #                             |(in_edges['target'].isin(card_0_in_nodes['node_id']))]
-#     
+#
 #     # Relevant entity nodes
 #     ent_0_nodes = ent_in_nodes[ent_in_nodes['node_id'].isin(card_0_in_edges['source'])
 #                                  |ent_in_nodes['node_id'].isin(card_0_in_edges['target'])]
 #
 #     card_0_in_nodes = pd.concat([card_0_in_nodes, ent_0_nodes], sort=False)
-#     
+#
 #     #result[card_id] = {'nodes': card_0_in_nodes.copy(), 'edges': card_0_in_edges.copy()}
-#     
+#
 #     # Build graph
 #     edge_attr = [x for x in card_0_in_edges.columns if not x in ['source', 'target']]
 #     H = nx.from_pandas_edgelist(card_0_in_edges,
@@ -337,7 +358,7 @@ import networkx as nx
 #                                 target='target',
 #                                 edge_attr=edge_attr,
 #                                 create_using=nx.DiGraph())
-#     
+#
 #     # NODES (set attributes)
 #     for k in card_0_in_nodes['type'].unique():
 #         #print(k)
@@ -352,9 +373,9 @@ import networkx as nx
 #             # Eliminate and wrap in quotes
 #             temp[node_attr] = temp[node_attr].apply(eliminate_and_wrap_in_quotes)
 #             nx.set_node_attributes(H, pd.Series(temp[node_attr].values, index=temp[node_col].values).copy().to_dict(), name=node_attr)
-#     
+#
 #     result[card_id]['incoming'] = H
-#     
+#
 #     a = result[card_id]
 #     pickle.dump(a, open(path_to_graph_file, 'wb'))
 #     result = {}
@@ -379,24 +400,24 @@ import networkx as nx
 # last=start
 #
 # for i, card_id in enumerate(ids_to_process):
-#         
+#
 #     result[card_id] = {}
 #     if not i%100:
 #         clear_output()
 #     else:
 #         if not i%print_every:
 #             print('{0}/{1} cards processed. Elapsed time: {2}'.format(i, ids_to_process.shape[0], datetime.datetime.now()-start))
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Start',now-last))
 #     last=now
-#     
+#
 #     # Card nodes
 #     card_0_nodes_qr = '''
 #     SELECT * FROM {0} WHERE card_id = '{1}'
 #     '''.format('public.'+out_nodes_table_name, card_id)
 #     card_0_nodes = pd.read_sql_query(card_0_nodes_qr, engine)
-#     
+#
 #     # Card edges
 #     card_0_edges_qr = '''
 #     SELECT * FROM {0}
@@ -404,7 +425,7 @@ import networkx as nx
 #     OR target IN {1}
 #     '''.format('public.'+out_edges_table_name, '('+','.join(["'"+x+"'" for x in card_0_nodes['node_id']])+')')
 #     card_0_edges = pd.read_sql_query(card_0_edges_qr, engine)
-#     
+#
 #     # Relevant entity nodes
 #     nodes_set = set(numpy.union1d(card_0_edges['source'].values,card_0_edges['target'].values))
 #     ent_0_nodes_qr = '''
@@ -413,19 +434,19 @@ import networkx as nx
 #     AND type='entity'
 #     '''.format('public.'+out_nodes_table_name, '('+','.join(["'"+x+"'" for x in nodes_set])+')')
 #     ent_0_nodes = pd.read_sql_query(ent_0_nodes_qr, engine)
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Relevant entity nodes filtering',now-last))
 #     last=now
 #
 #     card_0_nodes = pd.concat([card_0_nodes, ent_0_nodes], sort=False)
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Concat',now-last))
 #     last=now
-#     
+#
 #     #result[card_id] = {'nodes': card_0_nodes.copy(), 'edges': card_0_edges.copy()}
-#     
+#
 #     # Build graph
 #     edge_attr = [x for x in card_0_edges.columns if not x in ['source', 'target']]
 #     G = nx.from_pandas_edgelist(card_0_edges,
@@ -433,13 +454,13 @@ import networkx as nx
 #                                 target='target',
 #                                 edge_attr=edge_attr,
 #                                 create_using=nx.DiGraph())
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Build graph',now-last))
 #     last=now
-#     
+#
 #     ###### IN NODES
-#     
+#
 #     # NODES (set attributes)
 #     for k in card_0_nodes['type'].unique():
 #         #print(k)
@@ -453,25 +474,25 @@ import networkx as nx
 #
 #             # Eliminate and wrap in quotes
 #             #temp[node_attr] = temp[node_attr].apply(eliminate_and_wrap_in_quotes)
-#             
+#
 #             nx.set_node_attributes(G, pd.Series(temp[node_attr].values, index=temp[node_col].values).copy().to_dict(), name=node_attr)
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Set nodes attributes',now-last))
 #     last=now
-#     
+#
 #     result[card_id]['outgoing'] = json.dumps(json_graph.node_link_data(G))
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Dump outgoing',now-last))
 #     last=now
-#     
+#
 #     # Card in nodes
 #     card_0_in_nodes_qr = '''
 #     SELECT * FROM {0} WHERE card_id = '{1}'
 #     '''.format('public.'+in_nodes_table_name, card_id)
 #     card_0_in_nodes = pd.read_sql_query(card_0_in_nodes_qr, engine)
-#     
+#
 #     # Card in edges
 #     card_0_in_edges_qr = '''
 #     SELECT * FROM {0}
@@ -479,7 +500,7 @@ import networkx as nx
 #     OR target IN {1}
 #     '''.format('public.'+in_edges_table_name, '('+','.join(["'"+x+"'" for x in card_0_in_nodes['node_id']])+')')
 #     card_0_in_edges = pd.read_sql_query(card_0_in_edges_qr, engine)
-#     
+#
 #     # Relevant entity nodes
 #     nodes_set = set(numpy.union1d(card_0_in_edges['source'].values,card_0_in_edges['target'].values))
 #     ent_0_nodes_qr = '''
@@ -488,20 +509,20 @@ import networkx as nx
 #     AND type='entity'
 #     '''.format('public.'+in_nodes_table_name, '('+','.join(["'"+x+"'" for x in nodes_set])+')')
 #     ent_0_nodes = pd.read_sql_query(ent_0_nodes_qr, engine)
-#     
-#     
+#
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Filter innodes',now-last))
 #     last=now
 #
 #     card_0_in_nodes = pd.concat([card_0_in_nodes, ent_0_nodes], sort=False)
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Concat innodes',now-last))
 #     last=now
-#     
+#
 #     #result[card_id] = {'nodes': card_0_in_nodes.copy(), 'edges': card_0_in_edges.copy()}
-#     
+#
 #     # Build graph
 #     edge_attr = [x for x in card_0_in_edges.columns if not x in ['source', 'target']]
 #     H = nx.from_pandas_edgelist(card_0_in_edges,
@@ -509,11 +530,11 @@ import networkx as nx
 #                                 target='target',
 #                                 edge_attr=edge_attr,
 #                                 create_using=nx.DiGraph())
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Build',now-last))
 #     last=now
-#     
+#
 #     # NODES (set attributes)
 #     for k in card_0_in_nodes['type'].unique():
 #         #print(k)
@@ -528,23 +549,23 @@ import networkx as nx
 #             # Eliminate and wrap in quotes
 #             #temp[node_attr] = temp[node_attr].apply(eliminate_and_wrap_in_quotes)
 #             nx.set_node_attributes(H, pd.Series(temp[node_attr].values, index=temp[node_col].values).copy().to_dict(), name=node_attr)
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Set innodes attr',now-last))
 #     last=now
-#     
+#
 #     result[card_id]['incoming'] = json.dumps(json_graph.node_link_data(H))
-#     
+#
 #     now=datetime.datetime.now()
 #     print('Took {1}: process {0}'.format('Dump innodes',now-last))
 #     last=now
-#     
+#
 #     # Every X cards, create df and write to database
 #     X = write_every
 #     if (not i%X) and i:
 #         print('Exporting to Postgres. Elapsed: {0}'.format(datetime.datetime.now()-start))
 #         method = 'append' if (i!=X and i) else 'replace'
-#         
+#
 #         df = pd.DataFrame.from_dict(result, orient='index')
 #         df.index.name = 'card_id'
 #         df.to_sql(cards_graphs_as_json_to_table, engine, if_exists=method,
@@ -587,15 +608,15 @@ import networkx as nx
 # def process_ids(obj_tuple):
 #     list_with_many_ids, cards_graphs_as_json_to_table, out_nodes, out_edges, in_nodes, in_edges,engine = obj_tuple
 #     ids_to_process = list_with_many_ids
-#     
+#
 #     result = {}
 # #     print_every = 10
 #     write_every = 200 # cards
 #
 #     start = datetime.datetime.now()
-#     
+#
 #     for i, card_id in enumerate(ids_to_process):
-#         
+#
 #         result[card_id] = {}
 #         if not i%100:
 #             clear_output()
@@ -711,8 +732,6 @@ import networkx as nx
 # %load_ext autoreload
 # %autoreload 2
 
-import functions
-
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
@@ -722,9 +741,11 @@ def chunks(l, n):
 
 ids_to_process = list(ids_to_process)
 first_tuple = tuple([[ids_to_process[0]]])
-list_of_lists_of_ids = list(chunks(ids_to_process[1:], int(len(ids_to_process[1:])/1000)))
+list_of_lists_of_ids = list(
+    chunks(ids_to_process[1:], int(len(ids_to_process[1:])/1000)))
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 functions.build_graphs_of_cards(first_tuple, method='replace')
 
 # +
@@ -734,12 +755,11 @@ for l in list_of_lists_of_ids:
     list_to_distribute.append(
         tuple([l])
     )
-#list_to_distribute
+# list_to_distribute
 
 # +
-from multiprocessing import Pool
-import tqdm
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 if __name__ == '__main__':
     # for l in tqdm_func(list_to_distribute):
     #     functions.build_graphs_of_cards(l)

@@ -23,6 +23,11 @@
 # **DESIRED RESULT**:
 # table = idx | card_name | deck_name
 
+import os
+from bs4 import BeautifulSoup as BS
+import requests
+import collections
+from sqlalchemy import create_engine
 import json
 import pandas as pd
 import numpy
@@ -42,7 +47,6 @@ tqdm.pandas(desc="Progress")
 
 # # Params
 
-from sqlalchemy import create_engine
 
 engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
 engine.connect()
@@ -58,7 +62,8 @@ decks_table_name = "decks"
 
 try:
     registered_decks = pd.read_sql_query(
-        "SELECT DISTINCT deck_id from {0}".format("public." + decks_table_name), engine
+        "SELECT DISTINCT deck_id from {0}".format(
+            "public." + decks_table_name), engine
     )
     registered_decks = registered_decks["deck_id"].values
 except Exception:
@@ -68,7 +73,6 @@ except Exception:
 
 # + code_folding=[0]
 # Split dataframelist
-import collections
 
 
 def splitDataFrameList(df, target_column, separator=None):
@@ -94,7 +98,8 @@ def splitDataFrameList(df, target_column, separator=None):
             row_accumulator.append(new_row)
 
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(new_rows, target_column, separator))
+    df.apply(splitListToRows, axis=1, args=(
+        new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
@@ -103,8 +108,6 @@ def splitDataFrameList(df, target_column, separator=None):
 
 # # Fetching decks
 
-import requests
-from bs4 import BeautifulSoup as BS
 
 pg = requests.get(
     "https://magic.wizards.com/en/articles/archive/top-decks/team-trios-constructed-pro-tour-modern-and-legacy-2018-08-02"
@@ -137,7 +140,8 @@ for deck in tqdm(decks):
     main_cards_count = [
         int(x.text) for x in main_deck_list.find_all(class_="card-count")
     ]
-    main_cards_name = [x.text for x in main_deck_list.find_all(class_="card-name")]
+    main_cards_name = [
+        x.text for x in main_deck_list.find_all(class_="card-name")]
 
     main_deck_list = []
     for cop, name in zip(main_cards_count, main_cards_name):
@@ -151,7 +155,8 @@ for deck in tqdm(decks):
     side_cards_count = [
         int(x.text) for x in side_deck_list.find_all(class_="card-count")
     ]
-    side_cards_name = [x.text for x in side_deck_list.find_all(class_="card-name")]
+    side_cards_name = [
+        x.text for x in side_deck_list.find_all(class_="card-name")]
 
     side_deck_list = []
     for cop, name in zip(side_cards_count, side_cards_name):
@@ -172,7 +177,6 @@ for deck in tqdm(decks):
 
 # ## Create tables for deck
 
-import os
 
 deck_regex = r"^(?P<amount>\d+) (?P<card_name>.*?)\n"
 
@@ -181,7 +185,8 @@ for path, dir, filenames in os.walk("./decks/"):
     for i, filename in enumerate(filenames):
 
         print(
-            "{0}/{1} decks: {2}".format(i + 1, len(filenames), filename.split(".")[0])
+            "{0}/{1} decks: {2}".format(i + 1,
+                                        len(filenames), filename.split(".")[0])
         )
         deck_name, extension = filename.split(".")[0], filename.split(".")[1]
         if extension != "txt":
@@ -216,7 +221,8 @@ for path, dir, filenames in os.walk("./decks/"):
         deck_df["in"] = "MAIN"
 
         deck_df.index.rename("card_id_in_deck", inplace=True)
-        deck_df = deck_df.reset_index().set_index(["card_id_in_deck", "deck_id"])
+        deck_df = deck_df.reset_index().set_index(
+            ["card_id_in_deck", "deck_id"])
 
         print("Exporting")
         deck_df.to_sql(decks_table_name, engine, if_exists="append")

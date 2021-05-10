@@ -36,6 +36,10 @@
 # incoming_nodes_df = nodes for cards and attribute entities
 # incoming_edges_df = edges from the nodes above
 
+import uuid
+import collections
+from sqlalchemy import create_engine
+from tqdm import tqdm
 import json
 import pandas as pd
 import numpy as numpy
@@ -66,7 +70,8 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -78,7 +83,6 @@ logger.addHandler(ch)
 # tqdm_notebook.pandas()
 # This is for terminal
 logger.info("from tqdm import tqdm")
-from tqdm import tqdm
 
 tqdm.pandas(desc="Progress")
 
@@ -120,7 +124,6 @@ mains_col_names = [
     "subtypes",
 ]
 
-from sqlalchemy import create_engine
 
 engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
 engine.connect()
@@ -133,7 +136,6 @@ export_table_name = "cards_text_parts"
 
 # + code_folding=[0]
 # Split dataframelist
-import collections
 
 
 def splitDataFrameList(df, target_column, separator=None):
@@ -159,7 +161,8 @@ def splitDataFrameList(df, target_column, separator=None):
             row_accumulator.append(new_row)
 
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(new_rows, target_column, separator))
+    df.apply(splitListToRows, axis=1, args=(
+        new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
@@ -196,7 +199,8 @@ logger.info("p/t")
 # + code_folding=[]
 # Make numeric power and toughness
 cards_df["power_num"] = pd.to_numeric(cards_df["power"], errors="coerce")
-cards_df["toughness_num"] = pd.to_numeric(cards_df["toughness"], errors="coerce")
+cards_df["toughness_num"] = pd.to_numeric(
+    cards_df["toughness"], errors="coerce")
 # -
 
 logger.info("mana costs")
@@ -213,7 +217,8 @@ cards_df["manaCost_tuples_generic"] = cards_df["manaCost"].apply(
 cards_df["manaCost_tuples"] = cards_df["manaCost"].apply(
     lambda x: list(re.findall(all_mana_pattern, str(x)))
 )
-cards_df["manaCost_tuples_len"] = cards_df["manaCost_tuples"].apply(lambda x: len(x))
+cards_df["manaCost_tuples_len"] = cards_df["manaCost_tuples"].apply(
+    lambda x: len(x))
 cards_df["manaCost_tuples_generic_len"] = cards_df["manaCost_tuples_generic"].apply(
     lambda x: len(x)
 )
@@ -269,7 +274,8 @@ for land_name, sym in lands:
 logger.info("has add")
 # %% Check whether card can add mana
 cards_df["has_add"] = cards_df["text_preworked"].apply(
-    lambda x: True if re.findall(r"add ", str(x), flags=re.IGNORECASE) else False
+    lambda x: True if re.findall(
+        r"add ", str(x), flags=re.IGNORECASE) else False
 )
 
 logger.info("text preworked")
@@ -307,10 +313,12 @@ unique_ids.to_sql("unique_card_ids", engine, index=False, if_exists="replace")
 
 logger.info("unique_names to sql")
 unique_names = cards_df[["name"]].drop_duplicates()
-unique_names.to_sql("unique_card_names", engine, index=False, if_exists="replace")
+unique_names.to_sql("unique_card_names", engine,
+                    index=False, if_exists="replace")
 
 logger.info("unique_card_ids_names to sql")
-unique_card_ids_names = cards_df[["id", "name"]].drop_duplicates(subset=["name"])
+unique_card_ids_names = cards_df[["id", "name"]].drop_duplicates(subset=[
+                                                                 "name"])
 unique_card_ids_names.to_sql(
     "unique_card_ids_names", engine, index=False, if_exists="replace"
 )
@@ -350,7 +358,8 @@ cards_names = set(cards_df.name.unique())
 
 # +
 # %% Create set of supertypes
-array_of_supertypes_tuples = cards_df["supertypes"].dropna().apply(tuple).unique()
+array_of_supertypes_tuples = cards_df["supertypes"].dropna().apply(
+    tuple).unique()
 cards_supertypes = tuple()
 for tup in array_of_supertypes_tuples:
     cards_supertypes += tup
@@ -421,7 +430,8 @@ ability_start_pattern = r"|".join(["^" + ab + r"\b" for ab in abilities])
 # print(ability_start_pattern)
 def is_ability_sentence(sentence):
     elem_starting_with_ability = []
-    exceptions = ["Cycling abilities you activate cost up to {2} less to activate."]
+    exceptions = [
+        "Cycling abilities you activate cost up to {2} less to activate."]
     if sentence in exceptions:
         return False
     elems = sentence.replace(";", ",").split(", ")
@@ -441,10 +451,8 @@ def is_ability_sentence(sentence):
 
 # %% Lets detetect all paragraphs types (and keep each ability as a separate paragraph)
 
-import uuid
 
 # + code_folding=[1]
-import collections
 
 
 def splitDataFrameList(df, target_column, separator=None):
@@ -470,7 +478,8 @@ def splitDataFrameList(df, target_column, separator=None):
             row_accumulator.append(new_row)
 
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(new_rows, target_column, separator))
+    df.apply(splitListToRows, axis=1, args=(
+        new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
@@ -537,7 +546,8 @@ def get_paragraphs_and_types_df(card_row):
 logger.info(
     """cards_df['df_paragraphs'] = cards_df.progress_apply(get_paragraphs_and_types_df, axis=1)"""
 )
-cards_df["df_paragraphs"] = cards_df.progress_apply(get_paragraphs_and_types_df, axis=1)
+cards_df["df_paragraphs"] = cards_df.progress_apply(
+    get_paragraphs_and_types_df, axis=1)
 
 # +
 # cards_df[['text_preworked','df_paragraphs']].iloc[21]['df_paragraphs']
@@ -589,7 +599,8 @@ def get_pop_and_complements_df(paragraph_row):
             costs = costs.replace(",", "")
 
         res["pop"] = costs.split(",") + [effect]
-        types = ["activation_cost" for x in costs.split(",")] + ["activated_effect"]
+        types = ["activation_cost" for x in costs.split(
+            ",")] + ["activated_effect"]
 
         res["pop_type"] = types
         res["pop_order"] = range(res["pop"].shape[0])
@@ -745,9 +756,11 @@ cards_df_pop_parts = pd.concat(cards_df_pops["pop_parts"].values)
 # 4. Create entity detector for CARD_NAME_1, CARD_NAME_2,...
 # 5. Manually add edge between CARD_NAME_1 and its actual value (the actual card name)
 
-named_card_pattern = r"(" + r"|".join(["{0}".format(n) for n in cards_names]) + r")"
+named_card_pattern = r"(" + r"|".join(["{0}".format(n)
+                                       for n in cards_names]) + r")"
 named_card_regex = (
-    r" named " + named_card_pattern + "((?: or )" + named_card_pattern + ")?" + r".*?"
+    r" named " + named_card_pattern +
+    "((?: or )" + named_card_pattern + ")?" + r".*?"
 )
 # named_card_regex
 
@@ -792,7 +805,8 @@ named_card_regex = (
 # + deletable=false editable=false run_control={"frozen": true}
 # #cards_df_pop_parts = pd.read_sql_table('cards_text_parts', engine)
 # -
-logger.info("cards_df_pop_parts['text_pk'] = cards_df_pop_parts.progress_apply")
+logger.info(
+    "cards_df_pop_parts['text_pk'] = cards_df_pop_parts.progress_apply")
 cards_df_pop_parts["text_pk"] = cards_df_pop_parts.progress_apply(
     lambda x: "-".join(
         [
@@ -810,7 +824,8 @@ logger.info(
     "cards_df_pop_parts['part'] = cards_df_pop_parts['part'].replace(" ", numpy.nan)"
 )
 cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", numpy.nan)
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts = cards_df_pop_parts.dropna(subset=["part"])
 
 # %% Avoid pop
@@ -843,7 +858,8 @@ cards_df_pop_parts.set_index(
 logger.info("cards_df_pop_parts = pd.read_sql_table(export_table_name, engine)")
 cards_df_pop_parts = pd.read_sql_table(export_table_name, engine)
 
-cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", numpy.nan).dropna()
+cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace(
+    "", numpy.nan).dropna()
 cards_df_pop_parts = cards_df_pop_parts.dropna(subset=["part"])
 
 # +
@@ -856,16 +872,19 @@ cards_df_pop_parts["paragraph_pk"] = cards_df_pop_parts.progress_apply(
     lambda x: "-".join([x["card_id"], str(int(x["paragraph_order"]))]), axis=1
 )
 
-logger.info("""cards_df_pop_parts['pop_pk'] = cards_df_pop_parts.progress_apply""")
+logger.info(
+    """cards_df_pop_parts['pop_pk'] = cards_df_pop_parts.progress_apply""")
 cards_df_pop_parts["pop_pk"] = cards_df_pop_parts.progress_apply(
     lambda x: "-".join(
-        [x["card_id"], str(int(x["paragraph_order"])), str(int(x["pop_order"]))]
+        [x["card_id"], str(int(x["paragraph_order"])),
+         str(int(x["pop_order"]))]
     ),
     axis=1,
 )
 
 cards_df_pop_parts.set_index(
-    ["card_id", "paragraph_order", "pop_order", "part_order", "paragraph_pk", "pop_pk"]
+    ["card_id", "paragraph_order", "pop_order",
+        "part_order", "paragraph_pk", "pop_pk"]
 ).to_sql(export_table_name, engine, if_exists="replace")
 
 # +
@@ -884,7 +903,8 @@ metrics_pop.columns = ["pop_count"]
 metrics_pop[metrics_pop["pop_count"] > 5]
 # -
 
-metrics_pop.to_sql(export_table_name + "_metrics_pop", engine, if_exists="replace")
+metrics_pop.to_sql(export_table_name + "_metrics_pop",
+                   engine, if_exists="replace")
 
 # %% Create part metrics
 
@@ -898,7 +918,8 @@ metrics_part.columns = ["part_count"]
 metrics_part[metrics_part["part_count"] > 3]
 # -
 
-metrics_part.to_sql(export_table_name + "_metrics_part", engine, if_exists="replace")
+metrics_part.to_sql(export_table_name + "_metrics_part",
+                    engine, if_exists="replace")
 
 logger.info(f"FINISHED: {__file__}")
 

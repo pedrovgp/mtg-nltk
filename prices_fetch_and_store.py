@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
 
+from multiprocessing import Pool
+import random
+import time
+import pickle
+import slugify
+import jsonfinder
+import datetime
+from lxml import html
+from sqlalchemy import inspect
+from sqlalchemy import create_engine
 import json
 import pandas as pd
 import numpy as np
@@ -30,7 +40,8 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -41,10 +52,9 @@ logger.addHandler(ch)
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
 # This is for terminal
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(
+    __file__, inspect.getlineno(inspect.currentframe()) + 1))
 
-from sqlalchemy import create_engine
-from sqlalchemy import inspect
 
 engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
 engine.connect()
@@ -95,34 +105,30 @@ df = df.set_index(['date', 'card_id', 'card_media'])
 """
 # df.to_sql(tname, engine, if_exists='replace', chunksize=10000, index=True)
 
-import requests
-from lxml import html
-import datetime
-import jsonfinder
-import slugify
-import tqdm
-import pickle
-import time
 
 tname = 'prices'
 metatable_name = 'mtgprices_cards_urls'
-REPROCESS_EVERYTHING = False  # This will scrape all links again and set status to None (prices will be refetched for them)
+# This will scrape all links again and set status to None (prices will be refetched for them)
+REPROCESS_EVERYTHING = False
 
 if REPROCESS_EVERYTHING:
 
     # 1. Scrape collections urls
 
-    sets_html = requests.get('http://www.mtgprice.com/magic-the-gathering-prices.jsp')
+    sets_html = requests.get(
+        'http://www.mtgprice.com/magic-the-gathering-prices.jsp')
     sets_tree = html.fromstring(sets_html.content.decode())
     sets_elements = sets_tree.xpath("//table[@id='setTable']//a")
-    sets_links = ['http://www.mtgprice.com'+a.attrib['href'] for a in sets_elements]
+    sets_links = ['http://www.mtgprice.com'+a.attrib['href']
+                  for a in sets_elements]
 
     # 2. For each collection, scrape all cards URLs
     cards_dicts = []
     for set_link in tqdm.tqdm(sets_links):
         card_html = requests.get(set_link)
         card_tree = html.fromstring(card_html.content.decode())
-        card_elements = card_tree.xpath("//script[contains(text(), '$scope.setList')]")
+        card_elements = card_tree.xpath(
+            "//script[contains(text(), '$scope.setList')]")
         options = list(jsonfinder.jsonfinder(card_elements[0].text))
         cards_list_of_dicts = options[1][2]
         cards_dicts.extend(cards_list_of_dicts)
@@ -135,14 +141,16 @@ if REPROCESS_EVERYTHING:
     logger.info('Loaded cards_dicts from pickle')
 
     cards_dicts_df = pd.DataFrame(cards_dicts)
-    cards_dicts_df['card_url'] = cards_dicts_df['url'].apply(lambda x: 'http://www.mtgprice.com'+x)
+    cards_dicts_df['card_url'] = cards_dicts_df['url'].apply(
+        lambda x: 'http://www.mtgprice.com'+x)
     cards_dicts_df['status'] = None
     cards_dicts_df['last_scraped'] = datetime.datetime.now()
     cards_dicts_df = cards_dicts_df.set_index(['card_url'])
-    cards_dicts_df.to_sql(metatable_name, engine, if_exists='replace', chunksize=10000)
+    cards_dicts_df.to_sql(metatable_name, engine,
+                          if_exists='replace', chunksize=10000)
 
 # 3. For each card URL, apply ETL function
-import random
+
 
 def etl_of_card_prices(card_url, tname='prices', metatable_name=metatable_name):
     # url = 'http://www.mtgprice.com/sets/Zendikar_Expeditions/Misty_Rainforest'
@@ -152,8 +160,9 @@ def etl_of_card_prices(card_url, tname='prices', metatable_name=metatable_name):
     success_reading = False
     while not success_reading:
         try:
-            orig_row = pd.read_sql(f"""SELECT * FROM public."{metatable_name}" WHERE card_url='{url}'""", engine)
-            success_reading=True
+            orig_row = pd.read_sql(
+                f"""SELECT * FROM public."{metatable_name}" WHERE card_url='{url}'""", engine)
+            success_reading = True
         except Exception as e:
             time.sleep(random.random()/20)
             pass
@@ -176,7 +185,7 @@ def etl_of_card_prices(card_url, tname='prices', metatable_name=metatable_name):
     with open('elemt.txt', 'w') as f:
         f.write(text)
 
-    texts= [x.strip() for x in text.split('var')]
+    texts = [x.strip() for x in text.split('var')]
 
     # Each stri hold price (results), sellPriceData or VolumeData, in list format, each item of the list is a vendor
     dfs = []
@@ -185,7 +194,7 @@ def etl_of_card_prices(card_url, tname='prices', metatable_name=metatable_name):
         if data_type not in ['results', 'sellPriceData', 'volumeData']:
             continue
 
-        eles = [] # this will hold dicts with prices and volume, for each vendor
+        eles = []  # this will hold dicts with prices and volume, for each vendor
         for start, end, obj in jsonfinder.jsonfinder(stri):
             if isinstance(obj, dict) and "data" in obj.keys():
                 obj['data_type'] = data_type
@@ -209,13 +218,17 @@ def etl_of_card_prices(card_url, tname='prices', metatable_name=metatable_name):
     dfs['data_type'] = dfs['data_type'].replace({'results': 'price_uss'})
     dfs['date'] = (dfs['date']/1000).apply(datetime.datetime.fromtimestamp)
     dfs['vendor'] = dfs['label'].apply(lambda x: x.split('-')[0].strip())
-    dfs['card_name_slug'] = dfs['card'].apply(lambda x: slugify.slugify(x, separator='_'))
-    dfs['collection_slug'] = dfs['collection'].apply(lambda x: slugify.slugify(x, separator='_'))
+    dfs['card_name_slug'] = dfs['card'].apply(
+        lambda x: slugify.slugify(x, separator='_'))
+    dfs['collection_slug'] = dfs['collection'].apply(
+        lambda x: slugify.slugify(x, separator='_'))
     dfs = dfs.drop(columns=['label', 'name', 'collection'], errors='ignore')
-    dfs = dfs.set_index(['collection_slug', 'card_name_slug', 'date', 'data_type', 'vendor'])
+    dfs = dfs.set_index(
+        ['collection_slug', 'card_name_slug', 'date', 'data_type', 'vendor'])
 
     try:
-        dfs.to_sql(tname, engine, if_exists='append', chunksize=10000, index=True)
+        dfs.to_sql(tname, engine, if_exists='append',
+                   chunksize=10000, index=True)
     except Exception as e:
         orig_row['status'] = f'FAIL: {e}'
         orig_row['last_scraped'] = datetime.datetime.now()
@@ -232,6 +245,7 @@ def etl_of_card_prices(card_url, tname='prices', metatable_name=metatable_name):
     orig_row.to_sql(metatable_name, engine, if_exists='append')
     time.sleep(random.random() / 10)
     return url
+
 
 def clean_up():
     #  Drop duplicate from metadata
@@ -260,7 +274,7 @@ def clean_up():
         '''
     engine.execute(DROP_DUPLICATES_PG_QUERY)
 
-from multiprocessing import Pool
+
 if __name__ == '__main__':
     # for l in tqdm_func(list_to_distribute):
     #     functions.build_graphs_of_cards(l)
