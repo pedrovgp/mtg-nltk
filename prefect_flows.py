@@ -27,7 +27,7 @@ class CreateCardsDatabase(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("00.01-cards-sets.py")
+        execfile("a_create_cards_database.py")
 
 
 class LoadDecksIntoDatabase(Task):
@@ -35,7 +35,7 @@ class LoadDecksIntoDatabase(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("01-decks-ETL-no-NLP.py")
+        execfile("load_decks_into_database.py")
 
 
 class EnhanceCardsDataWithoutNLP(Task):
@@ -43,7 +43,7 @@ class EnhanceCardsDataWithoutNLP(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("01.01-cards-ETL-no-NLP.py")
+        execfile("b_enhance_cards_no_nlp.py")
 
 
 class EnhanceCardsDataWithNLP(Task):
@@ -51,7 +51,7 @@ class EnhanceCardsDataWithNLP(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("01.02-cards-ETL-token-nodes-edges-tables.py")
+        execfile("c_enhance_cards_with_nlp.py")
 
 
 class BuildIndividualCardsInOutGraph(Task):
@@ -59,7 +59,7 @@ class BuildIndividualCardsInOutGraph(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("02-cards-inout-graph-builder.py")
+        execfile("d_build_individual_cards_graph.py")
 
 
 class BuildTextToEntityGraphs(Task):
@@ -67,7 +67,7 @@ class BuildTextToEntityGraphs(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("03-text-to-entity-path-builder.py")
+        execfile("e_build_text_to_entity_graphs.py")
 
 
 class BuildGraphForAFewCardsAndSaveInPics(Task):
@@ -75,7 +75,7 @@ class BuildGraphForAFewCardsAndSaveInPics(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("03b-build_graph_of_selected_cards.py")
+        execfile("build_graph_of_selected_cards.py")
 
 
 flow_full_data_pipeline = Flow("Imperative-MTG-NLP-full-flow")
@@ -123,17 +123,14 @@ flow_full_data_pipeline.set_dependencies(
 
 # %% FLOW flow_deck_graph
 
-class CreateCardsDatabase(Task):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def run(self):
-        execfile("00.01-cards-sets.py")
-
-
 flow_deck_graph = Flow("Imperative-build-deck-graph")
 
 # %% INSTANTIATE TASKS IN flow_deck_graph
+
+
+class TBD:
+    pass
+
 
 # from deck name input, returns dataframe
 loadCardsAsDataframe = TBD()
@@ -145,12 +142,13 @@ composeAllGraphsCollapsed = TBD()
 drawGraph = TBD()
 
 # %% SET DEPENDENCIES in flow_deck_graph
-flow_deck_graph.set_dependencies(
-)
+# flow_deck_graph.set_dependencies(
+# )
 
+deck_slug = None
 if __name__ == "__main__":
 
-    if deck:
+    if deck_slug:
         flow_deck_graph.visualize()
         flow_state = flow_deck_graph.run()
         flow_full_data_pipeline.visualize(flow_state=flow_state)
