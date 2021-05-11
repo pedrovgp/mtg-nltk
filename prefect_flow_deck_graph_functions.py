@@ -1,0 +1,311 @@
+# The idea here is to
+# (see flow_deck_graph in prefect_flows)
+#
+# 1. Load the previously ETLelled outgoing and incoming graphs
+# 2. Build simple paths from card to its entity nodes
+# 3. Build a paths df keyed by card_id, entity and orders with some common attributes of these paths:
+# paragraph type/order, pop type/order, part type/order,
+# entity pos (actualy head's pos), entity head (actually head's head)
+# 4. Store in postgres
+# 5. Draw graph
+
+import networkx as nx
+import itertools
+from networkx.classes.graph import Graph
+from networkx.readwrite import json_graph
+from pandas.core.frame import DataFrame
+import sqlalchemy
+from sqlalchemy import create_engine
+from tqdm import tqdm
+import copy
+import itertools
+import json
+import textwrap
+
+import pandas as pd
+import numpy
+import re
+
+import logging
+import inspect
+import linecache
+import os
+
+try:
+    __file__
+except NameError:
+    # for running in ipython
+    fname = 'prefect_flow_deck_graph_functions.py'
+    __file__ = os.path.abspath(os.path.realpath(fname))
+
+logPathFileName = './logs/' + 'prefect_flow_deck_graph_functions.log'
+
+# create logger'
+logger = logging.getLogger('prefect_flow_deck_graph_functions')
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+# add the handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
+
+# This is for jupyter notebook
+# from tqdm.notebook import tqdm_notebook
+# tqdm_notebook.pandas()
+# This is for terminal
+tqdm.pandas(desc="Progress")
+
+# # Params
+
+logger.info("CREATE ENGINE")
+ENGINE = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
+
+CARDS_TNAME = "cards"
+CARDS_JSON_TNAME = "cards_graphs_as_json"
+DECKS_TNAME = "decks"
+TO_TNAME = "cards_text_to_entity_simple_paths"
+
+# # Helping functions
+
+# + code_folding=[0]
+# function to draw a graph to png
+SHAPES = ['box', 'polygon', 'ellipse', 'oval',
+          'circle', 'egg', 'triangle', 'exagon', 'star']
+COLORS = ['blue', 'black', 'red', '#db8625',
+          'green', 'gray', 'cyan', '#ed125b']
+STYLES = ['filled', 'rounded', 'rounded, filled', 'dashed', 'dotted, bold']
+
+ENTITIES_COLORS = {
+    'PLAYER': '#FF6E6E',
+    'ZONE': '#F5D300',
+    'ACTION': '#1ADA00',
+    'VERBAL_ACTION': '#1ADA00',
+    'MANA': '#00DA84',
+    'SUBTYPE': '#0DE5E5',
+    'TYPE': '#0513F0',
+    'SUPERTYPE': '#8D0BCA',
+    'NATURE': '#1ADA',
+    'ABILITY': '#cc3300',
+    'COLOR': '#666633',
+    'STEP': '#E0E0F8',
+    'PT': '#C10AC1',
+    'OBJECT': '#F5A40C',
+}
+ABSENT_COLOR = '#a87f32'
+
+
+def relayout(pygraph):
+    """Given a graph (pygraphviz), redesign its layout"""
+
+    for i, node in enumerate(pygraph.nodes()):
+        attrs = node.attr
+        entity_node_ent_type = attrs.get('entity_node_ent_type', None)
+        if (not pd.isnull(entity_node_ent_type)) and entity_node_ent_type:
+            color = ENTITIES_COLORS.get(
+                entity_node_ent_type.strip('"'), ABSENT_COLOR)
+            node.attr['fillcolor'] = color
+            node.attr['color'] = color
+            node.attr['shape'] = 'hexagon'
+            node.attr['style'] = 'filled'
+
+        node_type = attrs.get('type', None)
+        if node_type == '"card"':
+            color = '#999966'
+            node.attr['fillcolor'] = color
+            node.attr['shape'] = 'star'
+            node.attr['style'] = 'filled'
+
+    return pygraph
+
+
+def draw_graph(G, filename='test.png'):
+    pygv = nx.drawing.nx_agraph.to_agraph(G)  # pygraphviz
+
+    pygv = relayout(pygv)
+
+    pygv.layout(prog='dot')
+    pygv.draw(filename)
+
+    # from IPython.display import Image
+    # return Image(filename)
+# -
+
+# # Build graph with Networkx
+
+
+# ### Get paths from cards_text to entities (simple paths from text -> entities)
+# +
+logger.info("Define load_decks_cards_as_dataframe")
+
+
+def load_decks_cards_as_dataframe(
+    deck_id: str,
+    cards_table_name=CARDS_TNAME,
+    cards_json_table_name=CARDS_JSON_TNAME,
+    decks_tname=DECKS_TNAME,
+    main_deck='MAIN',
+    engine=ENGINE
+) -> pd.DataFrame:
+
+    logger.info(
+        f"load_decks_cards_as_dataframe: load cards from deck: {deck_id}")
+
+    query = f'''
+        SELECT * from {cards_json_table_name} as cjson
+        JOIN (SELECT name as card_name, id as card_id, type FROM {cards_table_name}) as cards
+        ON cjson.card_id = cards.card_id
+        JOIN {decks_tname} as decks
+        ON cards.card_name = decks.card_name
+        WHERE decks.deck_id = '{deck_id}' AND decks.in = '{main_deck}'
+    '''
+    logger.debug(query)
+
+    df = pd.read_sql_query(query, engine)
+
+    if not df.shape[0]:
+        logger.error("Empty result from load_decks_cards_as_dataframe")
+        query = f'''
+            SELECT DISTINCT deck_id from {decks_tname} as decks
+        '''
+        decks_ids_df = pd.read_sql_query(query, engine)
+        raise Exception(f"""
+            The resulting query was empty. Are you sure this deck_id is registered?
+            Add the deck txt to decks folder and run decks ETL no NLP to register it.
+            Valid deck ids: {decks_ids_df['deck_id'].values}
+        """)
+
+    logger.info(
+        f"Filter out Basic Lands for now, the graph is too big with them")
+    df = df[~df['type'].str.contains('Basic Land')]
+    df
+
+    return df
+
+
+def create_cards_graphs(
+    # df: one row per card (pk col name: card_id_in_deck), with columns incoming, outgoing
+    df: pd.DataFrame,
+) -> pd.DataFrame:  # must contain cols {card_id_in_deck, incoming_graph, outgoing_graph}
+
+    df['incoming_graph'] = df['incoming'].progress_apply(
+        lambda x: json_graph.node_link_graph(json.loads(x)))
+
+    df['outgoing_graph'] = df['outgoing'].progress_apply(
+        lambda x: json_graph.node_link_graph(json.loads(x)))
+
+    return df
+
+
+def collapse_single_path(digraph, path):
+    '''
+
+    :param digraph: networkx.DiGraph
+    :param path: list of nodes (simple path of digraph)
+    :return: networkx.DiGraph with only first and last nodes and one edge between them
+
+    The original graph is an attribute of the edge
+    '''
+    digraph_ordered = digraph.subgraph(
+        path)  # in each element node 0 is card, node 1 is text part
+    res = nx.DiGraph()
+    # Add first and last nodes with their respective attributes
+    res.add_node(path[0], **digraph.nodes[path[0]])
+    res.add_node(path[-1], **digraph.nodes[path[-1]])
+    # edge_attr = {'full_original_path_graph': digraph}
+    edge_attr = {}
+    labels = []
+
+    for i, node in enumerate(path):
+        label = ''
+        if not i:
+            continue
+        # dict: attributes of each edge in order
+        e_at = digraph_ordered.edges[path[i - 1], node]
+        edge_attr[f'edge-{i}'] = e_at
+        label += e_at.get('part_type_full', None) or e_at.get('label') + ':'
+        if dict(digraph_ordered[node]):
+            # dict: attributes of each node in order
+            n_at = dict(digraph_ordered.nodes[node])
+            edge_attr[f'node-{i}'] = dict(digraph_ordered.nodes[node])
+            label += n_at.get('label')
+
+        labels.append(label)
+
+    res.add_edge(path[0], path[-1], **edge_attr,
+                 # This label is too big to show when plotting a full deck
+                 #  label=''.join(textwrap.wrap(f'{" | ".join(labels)}')),
+                 label='',
+                 )
+
+    return res
+
+# %% Compose all
+
+
+def compose_all_graphs_collapsed(
+        # must cointain cols {card_id_in_deck, incoming_graph, outgoing_graph}
+        df: pd.DataFrame
+) -> nx.Graph:
+
+    # reset incoming and outgoing graphs for the card nodes to have the
+    # same id and that id set to card_id_in_deck
+    # select node of type==card, get its id, create mapping={id: card_id_in_deck}
+    df['incoming_card_original_label'] = df['incoming_graph'].progress_apply(lambda g:
+                                                                             [n for n, d in g.nodes(
+                                                                                 data=True) if d['type'] == 'card'][0]
+                                                                             )
+    df['outgoing_card_original_label'] = df['outgoing_graph'].progress_apply(lambda g:
+                                                                             [n for n, d in g.nodes(
+                                                                                 data=True) if d['type'] == 'card'][0]
+                                                                             )
+    # Relabel card nodes to their id in the deck
+    df['incoming_graph'] = df.progress_apply(lambda row: nx.relabel_nodes(
+        row['incoming_graph'], {row['incoming_card_original_label']: row['card_id_in_deck']}),
+        axis='columns')
+
+    df['outgoing_graph'] = df.progress_apply(lambda row: nx.relabel_nodes(
+        row['outgoing_graph'], {row['outgoing_card_original_label']: row['card_id_in_deck']}),
+        axis='columns')
+
+    # Compose graph with all incoming and outgoing graphs
+    G = nx.algorithms.operators.compose_all(
+        list(df['incoming_graph'].values)+list(df['outgoing_graph'].values))
+
+    paths_list = []
+    all_card_nodes_ids = list(df['card_id_in_deck'].unique())
+    df['simple_paths'] = df['card_id_in_deck'].progress_apply(
+        lambda node_id: nx.all_simple_paths(
+            G, node_id, [x for x in all_card_nodes_ids if x != node_id])
+    )
+    logger.info(f"Create df['collapsed_simple_paths']")
+    df['collapsed_simple_paths'] = df['simple_paths'].progress_apply(
+        lambda paths: [collapse_single_path(G, path)
+                       for path in paths]
+    )
+    logger.info(
+        f"H = nx.algorithms.operators.compose_all(df['collapsed_simple_paths'])")
+    all_single_paths = [
+        item for sublist in df['collapsed_simple_paths'].values for item in sublist]
+    H = nx.algorithms.operators.compose_all(all_single_paths)
+
+    return H
+
+
+# deckid = 'pv_white_short'
+deckid = '00deck_frustrado_dano_as_is'
+try:
+    df_orig.shape
+except NameError:
+    df_orig = load_decks_cards_as_dataframe(deckid)
+df = create_cards_graphs(df_orig.copy())
+H = compose_all_graphs_collapsed(df)
+draw_graph(H, f'pics/decks_graphs/{deckid}.png')

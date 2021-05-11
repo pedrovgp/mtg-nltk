@@ -19,6 +19,8 @@ def execfile(fn):
 
 #######################
 
+# %% FLOW FULL PIPELINE DEFINITION
+
 
 class CreateCardsDatabase(Task):
     def __init__(self, *args, **kwargs):
@@ -76,8 +78,7 @@ class BuildGraphForAFewCardsAndSaveInPics(Task):
         execfile("03b-build_graph_of_selected_cards.py")
 
 
-# %% FLOW DEFINITION
-flow = Flow("Imperative-MTG-NLP-full-flow")
+flow_full_data_pipeline = Flow("Imperative-MTG-NLP-full-flow")
 
 # %% INSTANTIATE TASKS
 
@@ -91,40 +92,72 @@ build_text_to_entity_graphs = BuildTextToEntityGraphs()
 build_graph_for_a_few_cards_and_save_pics = BuildGraphForAFewCardsAndSaveInPics()
 
 # %% SET DEPENDENCIES
-flow.set_dependencies(
+flow_full_data_pipeline.set_dependencies(
     task=build_graph_for_a_few_cards_and_save_pics,
     upstream_tasks=[build_text_to_entity_graphs],
 )
-flow.set_dependencies(
+flow_full_data_pipeline.set_dependencies(
     task=build_text_to_entity_graphs,
     upstream_tasks=[build_individual_cards_graph],
 )
-flow.set_dependencies(
+flow_full_data_pipeline.set_dependencies(
     task=build_individual_cards_graph,
     upstream_tasks=[enhance_cards_with_nlp],
 )
 
-flow.set_dependencies(
+flow_full_data_pipeline.set_dependencies(
     task=enhance_cards_with_nlp,
     upstream_tasks=[enhance_cards_without_nlp],
 )
 
-flow.set_dependencies(
+flow_full_data_pipeline.set_dependencies(
     task=enhance_cards_without_nlp,
     upstream_tasks=[create_cards_database],
 )
 
-flow.set_dependencies(
+flow_full_data_pipeline.set_dependencies(
     task=load_decks_into_database,
     upstream_tasks=[create_cards_database],
 )
 
-# %% VISUALIZE, RUN, WHATEVER
-flow.visualize()
-# flow.run()
+
+# %% FLOW flow_deck_graph
+
+class CreateCardsDatabase(Task):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def run(self):
+        execfile("00.01-cards-sets.py")
+
+
+flow_deck_graph = Flow("Imperative-build-deck-graph")
+
+# %% INSTANTIATE TASKS IN flow_deck_graph
+
+# from deck name input, returns dataframe
+loadCardsAsDataframe = TBD()
+# from Dataframe input, daframe with Incoming and Outgoing cards Graphs
+createIndividualCardsGraph = TBD()
+# from df of graphs, returns composed Graph, with nodes collpased to only cards
+composeAllGraphsCollapsed = TBD()
+# writes graph to pics
+drawGraph = TBD()
+
+# %% SET DEPENDENCIES in flow_deck_graph
+flow_deck_graph.set_dependencies(
+)
 
 if __name__ == "__main__":
-    flow_state = flow.run()
-    flow.visualize(flow_state=flow_state)
+
+    if deck:
+        flow_deck_graph.visualize()
+        flow_state = flow_deck_graph.run()
+        flow_full_data_pipeline.visualize(flow_state=flow_state)
+
+    else:
+        flow_full_data_pipeline.visualize()
+        flow_state = flow_full_data_pipeline.run()
+        flow_full_data_pipeline.visualize(flow_state=flow_state)
 
     pass
