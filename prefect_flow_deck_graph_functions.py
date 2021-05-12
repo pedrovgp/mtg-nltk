@@ -1,4 +1,6 @@
-# The idea here is to
+# %% Definitions
+#
+# # The idea here is to
 # (see flow_deck_graph in prefect_flows)
 #
 # 1. Load the previously ETLelled outgoing and incoming graphs
@@ -11,9 +13,7 @@
 
 import networkx as nx
 import itertools
-from networkx.classes.graph import Graph
 from networkx.readwrite import json_graph
-from pandas.core.frame import DataFrame
 import sqlalchemy
 from sqlalchemy import create_engine
 from tqdm import tqdm
@@ -26,6 +26,7 @@ import pandas as pd
 import numpy
 import re
 
+from typing import List
 import logging
 import inspect
 import linecache
@@ -73,6 +74,7 @@ CARDS_TNAME = "cards"
 CARDS_JSON_TNAME = "cards_graphs_as_json"
 DECKS_TNAME = "decks"
 TO_TNAME = "cards_text_to_entity_simple_paths"
+DECKS_GRAPH_TNAME = 'decks_graphs'
 
 # # Helping functions
 
@@ -142,9 +144,38 @@ def draw_graph(G, filename='test.png'):
 # # Build graph with Networkx
 
 
-# ### Get paths from cards_text to entities (simple paths from text -> entities)
-# +
-logger.info("Define load_decks_cards_as_dataframe")
+def load_cards_as_dataframe(
+    cards_slugs: list,
+    cards_table_name=CARDS_TNAME,
+    cards_json_table_name=CARDS_JSON_TNAME,
+    engine=ENGINE
+) -> pd.DataFrame:
+
+    logger.info(
+        f"load_cards_as_dataframe: load cards: {cards_slugs}")
+
+    query = f'''
+        SELECT * from {cards_json_table_name} as cjson
+        JOIN (SELECT name as card_name, id as card_id, type, name_slug FROM {cards_table_name}) as cards
+        ON cjson.card_id = cards.card_id
+        WHERE cards.name_slug IN ({", ".join([f"'{x}'" for x in cards_slugs])})
+    '''
+    logger.debug(query)
+
+    df = pd.read_sql_query(query, engine)
+
+    if not df.shape[0]:
+        logger.error("Empty result from load_cards_as_dataframe")
+        df = pd.read_sql_query(
+            f'SELECT name_slug from {CARDS_TNAME} LIMIT 5', engine)
+        raise Exception(f"""
+            The resulting query was empty. Are you sure these cards slugs exist?
+            Valid names slugs examples: {df['name_slug'].values}
+        """)
+
+    df
+
+    return df
 
 
 def load_decks_cards_as_dataframe(
@@ -161,10 +192,11 @@ def load_decks_cards_as_dataframe(
 
     query = f'''
         SELECT * from {cards_json_table_name} as cjson
-        JOIN (SELECT name as card_name, id as card_id, type FROM {cards_table_name}) as cards
-        ON cjson.card_id = cards.card_id
+        JOIN (SELECT name as card_name_2, id as card_id_2, type, text
+              FROM {cards_table_name}) as cards
+        ON cjson.card_id = cards.card_id_2
         JOIN {decks_tname} as decks
-        ON cards.card_name = decks.card_name
+        ON cards.card_name_2 = decks.card_name
         WHERE decks.deck_id = '{deck_id}' AND decks.in = '{main_deck}'
     '''
     logger.debug(query)
@@ -183,12 +215,39 @@ def load_decks_cards_as_dataframe(
             Valid deck ids: {decks_ids_df['deck_id'].values}
         """)
 
-    logger.info(
-        f"Filter out Basic Lands for now, the graph is too big with them")
-    df = df[~df['type'].str.contains('Basic Land')]
+    # logger.info(
+    #     f"Filter out Basic Lands for now, the graph is too big with them")
+    # df = df[~df['type'].str.contains('Basic Land')]
     df
 
     return df
+
+
+def aggregate_cards_and_set_weights(
+    df: pd.DataFrame,
+    # the unique identifier in the input dataframe
+    card_id_col='card_id_in_deck',
+    # the identifier of the card in the resulting dataframe
+    index_name='card_unit_id',
+) -> pd.DataFrame:
+    """Reduce number of cards to unique cards, setting weight (column) equal
+    to the number of times the card appears in the deck/df"""
+
+    counter = df[['card_id', card_id_col]]
+    counter = (
+        counter
+        .groupby('card_id')
+        .count()
+        .reset_index()
+        .rename(columns={card_id_col: 'weight'})
+    )
+    df2 = (
+        df.drop_duplicates(subset=['card_id'])
+        .merge(counter, on=['card_id'])
+    )
+    df2[index_name] = range(df2.shape[0])
+
+    return df2
 
 
 def create_cards_graphs(
@@ -252,9 +311,16 @@ def collapse_single_path(digraph, path):
 
 
 def compose_all_graphs_collapsed(
-        # must cointain cols {card_id_in_deck, incoming_graph, outgoing_graph}
-        df: pd.DataFrame
+        # must cointain cols { {node_id_col}, incoming_graph, outgoing_graph}
+        df: pd.DataFrame,
+        # the column which contains the card node id
+        node_id_col: str = 'card_id_in_deck',
+        weight_col: str = 'weight',
 ) -> nx.Graph:
+
+    # If there is not weight definition for nodes, set it as 1
+    if weight_col not in df.columns:
+        df[weight_col] = 1
 
     # reset incoming and outgoing graphs for the card nodes to have the
     # same id and that id set to card_id_in_deck
@@ -269,20 +335,40 @@ def compose_all_graphs_collapsed(
                                                                              )
     # Relabel card nodes to their id in the deck
     df['incoming_graph'] = df.progress_apply(lambda row: nx.relabel_nodes(
-        row['incoming_graph'], {row['incoming_card_original_label']: row['card_id_in_deck']}),
+        row['incoming_graph'], {row['incoming_card_original_label']: row[node_id_col]}),
         axis='columns')
 
     df['outgoing_graph'] = df.progress_apply(lambda row: nx.relabel_nodes(
-        row['outgoing_graph'], {row['outgoing_card_original_label']: row['card_id_in_deck']}),
+        row['outgoing_graph'], {row['outgoing_card_original_label']: row[node_id_col]}),
         axis='columns')
+
+    # Set card nodes weights
+
+    # For pyvis layout: set
+    # group=card_type,
+    # title=hover_text(whatever I want),
+    # size=weight,
+    # label=some short name ({weight} card_name)
+    for graph_col in ['incoming_graph', 'outgoing_graph']:
+        nothing_returned = df.progress_apply(lambda row: nx.set_node_attributes(
+            row[graph_col],
+            # {node_id: {attr_name: value}}
+            {row[node_id_col]: {
+                'group': row['type'],
+                'title': row['text'],
+                'size': row['weight'],
+                'label': f"{row['weight']} {row['card_name']}",
+            }
+            }),
+            axis='columns')
 
     # Compose graph with all incoming and outgoing graphs
     G = nx.algorithms.operators.compose_all(
         list(df['incoming_graph'].values)+list(df['outgoing_graph'].values))
 
     paths_list = []
-    all_card_nodes_ids = list(df['card_id_in_deck'].unique())
-    df['simple_paths'] = df['card_id_in_deck'].progress_apply(
+    all_card_nodes_ids = list(df[node_id_col].unique())
+    df['simple_paths'] = df[node_id_col].progress_apply(
         lambda node_id: nx.all_simple_paths(
             G, node_id, [x for x in all_card_nodes_ids if x != node_id])
     )
@@ -300,12 +386,102 @@ def compose_all_graphs_collapsed(
     return H
 
 
-# deckid = 'pv_white_short'
-deckid = '00deck_frustrado_dano_as_is'
-try:
-    df_orig.shape
-except NameError:
-    df_orig = load_decks_cards_as_dataframe(deckid)
-df = create_cards_graphs(df_orig.copy())
-H = compose_all_graphs_collapsed(df)
-draw_graph(H, f'pics/decks_graphs/{deckid}.png')
+def save_decks_graphs_to_db(
+    deck_ids: List[str],  # deck_slug in database
+    engine=ENGINE,
+    decks_tname=DECKS_TNAME,
+    decks_graphs_tname=DECKS_GRAPH_TNAME,
+
+
+) -> List[nx.Graph]:
+    """Calculate graphs for deck_ids
+    and save them (serialized do json) to db associated with the deck_id.
+    Also, return a list of the generated graphs
+    """
+
+    logger.info(f'Saving decks graphs: {deck_ids}')
+    res = []
+    graphs = []
+    for deck_id in deck_ids:
+        logger.info(f'Saving deck graph: {deck_id}')
+        df_orig = load_decks_cards_as_dataframe(deck_id)
+        df = create_cards_graphs(df_orig.copy())
+        df = aggregate_cards_and_set_weights(df)
+        H = compose_all_graphs_collapsed(df, node_id_col='card_unit_id')
+        graphs.append(H)
+
+        res = pd.DataFrame([{'deck_id': deck_id,
+                           'graph_json': json.dumps(json_graph.node_link_data(H))}])
+        res = res.set_index('deck_id')
+
+        # Perform upsert
+        try:
+            res.to_sql(decks_graphs_tname, engine, if_exists='fail')
+        except ValueError:
+
+            delete_query = f"""
+                DELETE from {decks_graphs_tname}
+                WHERE deck_id = '{deck_id}'
+            """
+            # WHERE deck_id IN ({", ".join([f"'{x}'" for x in deck_ids])})
+            with engine.connect() as con:
+                con.execute(delete_query)
+
+            res.to_sql(decks_graphs_tname, engine, if_exists='append')
+
+        logger.info(f'Finished deck: {deck_id}')
+
+    return graphs
+
+
+def load_decks_graphs_from_db(
+    deck_ids: List[str],  # deck_slug in database
+    engine=ENGINE,
+    decks_graphs_tname=DECKS_GRAPH_TNAME,
+) -> List[nx.Graph]:
+    """Load decks graphs as json and de-serialize them to nx.Graphs
+    """
+
+    res = []
+    graphs = []
+    query = f"""
+    SELECT *
+    FROM {decks_graphs_tname}
+    WHERE deck_id IN ({", ".join([f"'{x}'" for x in deck_ids])})
+    """
+    df = pd.read_sql_query(query, engine)
+    df['graph'] = df['graph_json'].apply(lambda x:
+                                         json_graph.node_link_graph(json.loads(x)))
+
+    return list(df['graph'].values)
+
+
+# %% Draw deck graph
+if False:
+    # deckids = ['00deck_frustrado_dano_as_is']
+    deckids = [
+        '00deck_frustrado_dano_as_is',
+        '00deck_passarinhos_as_is',
+        '00deck_alsios_combado'
+    ]
+    H = save_decks_graphs_to_db(deck_ids=deckids)[0]
+    G = load_decks_graphs_from_db(deck_ids=deckids)[0]
+    assert nx.is_isomorphic(H, G)
+    draw_graph(G, f'pics/decks_graphs/{deckids[0]}.png')
+
+# %% Draw two cards graph (it will draw left to right)
+if False:
+    # cards_slugs = ['incinerate', 'pardic_firecat']
+    # cards_slugs = ['aura_of_silence', 'worship']
+    # cards_slugs = ['thunderbolt', 'pardic_firecat']
+    cards_slugs = ['swords_to_plowshares', 'white_knight']
+    df_orig = load_cards_as_dataframe(cards_slugs)
+    df = create_cards_graphs(df_orig.copy())
+    outgoing = df.loc[df['name_slug'] ==
+                      cards_slugs[0], 'outgoing_graph'].values[0]
+    incoming = df.loc[df['name_slug'] ==
+                      cards_slugs[1], 'incoming_graph'].values[0]
+    G = nx.algorithms.operators.compose_all([outgoing, incoming])
+    draw_graph(G, f'pics/2_cards/{"-".join(cards_slugs)}.png')
+
+# %%
