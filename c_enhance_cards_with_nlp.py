@@ -337,6 +337,7 @@ for tup in array_of_types_tuples:
     cards_types += tup
 
 cards_types = set(cards_types)
+logger.debug(f"Cards types: {cards_types}")
 # cards_types
 
 # +

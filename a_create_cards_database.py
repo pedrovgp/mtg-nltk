@@ -22,6 +22,7 @@
 # A card should appear once for each set it has been released on
 
 import uuid
+from slugify import slugify
 import collections
 from sqlalchemy import create_engine
 from tqdm import tqdm
@@ -180,6 +181,7 @@ cards_df = cards_df.drop(
 )
 # cards_df = cards_df.sample(200)
 # cards_df = cards_df[cards_df['name'].isin(all_cards_names_in_decks)]
+cards_df['name_slug'] = cards_df['name'].apply(slugify, separator="_")
 
 # ### Add and transform features
 logger.info("p/t")
@@ -290,7 +292,8 @@ assert cards_df[cards_df["text_preworked"].str.contains("\(").fillna(False)][
 
 # Export to sql
 logger.info("cards_df to sql")
-cards_df.set_index(["id", "name"]).to_sql("cards", engine, if_exists="replace")
+cards_df.set_index(["id", "name", "name_slug"]).to_sql(
+    "cards", engine, if_exists="replace")
 
 # +
 # Export keys tables
