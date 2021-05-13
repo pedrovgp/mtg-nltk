@@ -358,6 +358,8 @@ def compose_all_graphs_collapsed(
                 'title': row['text'],
                 'size': row['weight'],
                 'label': f"{row['weight']} {row['card_name']}",
+                # To show card image on hover
+                # 'title': '''<img src="https://c1.scryfall.com/file/scryfall-cards/normal/front/b/f/bf87803b-e7c6-4122-add4-72e596167b7e.jpg" width="150">''',
             }
             }),
             axis='columns')
@@ -457,11 +459,11 @@ def load_decks_graphs_from_db(
 
 
 # %% Draw deck graph
-if False:
+if True:
     # deckids = ['00deck_frustrado_dano_as_is']
     deckids = [
-        '00deck_frustrado_dano_as_is',
-        '00deck_passarinhos_as_is',
+        # '00deck_frustrado_dano_as_is',
+        # '00deck_passarinhos_as_is',
         '00deck_alsios_combado'
     ]
     H = save_decks_graphs_to_db(deck_ids=deckids)[0]

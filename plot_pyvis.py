@@ -123,13 +123,13 @@ nx_graph.add_node(25, size=25, label='lonely',
 # nt.show(f'./graphs/nx.html')
 
 # %% Actual deck graph
-deckids = [
-    '00deck_frustrado_dano_as_is',
-    '00deck_passarinhos_as_is',
+deck_ids = [
+    # '00deck_frustrado_dano_as_is',
+    # '00deck_passarinhos_as_is',
     '00deck_alsios_combado'
 ]
-ds = pd.read_sql('decks', ENGINE, columns=['deck_id'])
-deck_ids = list(ds.deck_id.unique())
+# ds = pd.read_sql('decks', ENGINE, columns=['deck_id'])
+# deck_ids = list(ds.deck_id.unique())
 for dcid in deck_ids:
     G = load_decks_graphs_from_db(deck_ids=[dcid])[0]
     nt.from_nx(G)
