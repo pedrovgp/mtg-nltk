@@ -2,7 +2,7 @@
 
 from pyvis.network import Network
 import networkx as nx
-from prefect_flow_deck_graph_functions import load_decks_graphs_from_db
+from prefect_flow_deck_graph_functions import load_decks_graphs_from_db, ENGINE
 
 # %% Options for visual layout
 
@@ -124,11 +124,13 @@ nx_graph.add_node(25, size=25, label='lonely',
 
 # %% Actual deck graph
 deckids = [
-    # '00deck_frustrado_dano_as_is',
-    # '00deck_passarinhos_as_is',
+    '00deck_frustrado_dano_as_is',
+    '00deck_passarinhos_as_is',
     '00deck_alsios_combado'
 ]
-for dcid in deckids:
+ds = pd.read_sql('decks', ENGINE, columns=['deck_id'])
+deck_ids = list(ds.deck_id.unique())
+for dcid in deck_ids:
     G = load_decks_graphs_from_db(deck_ids=[dcid])[0]
     nt.from_nx(G)
     nt.show(f'./graphs/{dcid}.html')
