@@ -192,7 +192,7 @@ def load_decks_cards_as_dataframe(
 
     query = f'''
         SELECT * from {cards_json_table_name} as cjson
-        JOIN (SELECT name as card_name_2, id as card_id_2, type, text
+        JOIN (SELECT name as card_name_2, id as card_id_2, type, text, power, toughness
               FROM {cards_table_name}) as cards
         ON cjson.card_id = cards.card_id_2
         JOIN {decks_tname} as decks
@@ -245,6 +245,11 @@ def aggregate_cards_and_set_weights(
         df.drop_duplicates(subset=['card_id'])
         .merge(counter, on=['card_id'])
     )
+
+    if df2.shape[0] > 40:
+        raise ValueError(f'Too many unique cards in deck ({df2.shape[0]}). '
+                         f'I can only process up to 40 at this moment.')
+
     df2[index_name] = range(df2.shape[0])
 
     return df2
@@ -282,9 +287,11 @@ def collapse_single_path(digraph, path):
     # edge_attr = {'full_original_path_graph': digraph}
     edge_attr = {}
     labels = []
+    short_labels = []
 
     for i, node in enumerate(path):
         label = ''
+        short_label = ''
         if not i:
             continue
         # dict: attributes of each edge in order
@@ -296,14 +303,23 @@ def collapse_single_path(digraph, path):
             n_at = dict(digraph_ordered.nodes[node])
             edge_attr[f'node-{i}'] = dict(digraph_ordered.nodes[node])
             label += n_at.get('label')
+            if (
+                (e_at.get('type', None) == 'token_to_head_part')
+                and (e_at.get('label', None) == 'ROOT')
+            ):
+                short_label += n_at.get('token_node_text')
 
         labels.append(label)
+        if short_label:
+            short_labels.append(short_label)
 
     res.add_edge(path[0], path[-1], **edge_attr,
                  # This label is too big to show when plotting a full deck
-                 #  label=''.join(textwrap.wrap(f'{" | ".join(labels)}')),
-                 label='',
-                 )
+                 title=(
+                     ''.join(textwrap.wrap(f'{" |<br>".join(labels)}'))),
+                 label=(
+        ''.join(textwrap.wrap(f'{" | ".join(short_labels)}'))),
+    )
 
     return res
 
@@ -316,7 +332,10 @@ def compose_all_graphs_collapsed(
         # the column which contains the card node id
         node_id_col: str = 'card_id_in_deck',
         weight_col: str = 'weight',
+        target='card',  # card or entity
 ) -> nx.Graph:
+    """Build all simple paths between cards in the deck, or cards an entities,
+    and collpase each simple path into an edge between cards or card and entity"""
 
     # If there is not weight definition for nodes, set it as 1
     if weight_col not in df.columns:
@@ -349,6 +368,11 @@ def compose_all_graphs_collapsed(
     # title=hover_text(whatever I want),
     # size=weight,
     # label=some short name ({weight} card_name)
+    def get_label(row):
+        if row['power']:
+            return f"{row['weight']} {row['card_name']} {row['power']}/{row['toughness']} "
+        return f"{row['weight']} {row['card_name']}"
+
     for graph_col in ['incoming_graph', 'outgoing_graph']:
         nothing_returned = df.progress_apply(lambda row: nx.set_node_attributes(
             row[graph_col],
@@ -357,7 +381,7 @@ def compose_all_graphs_collapsed(
                 'group': row['type'],
                 'title': row['text'],
                 'size': row['weight'],
-                'label': f"{row['weight']} {row['card_name']}",
+                'label': get_label(row),
                 # To show card image on hover
                 # 'title': '''<img src="https://c1.scryfall.com/file/scryfall-cards/normal/front/b/f/bf87803b-e7c6-4122-add4-72e596167b7e.jpg" width="150">''',
             }
@@ -365,14 +389,37 @@ def compose_all_graphs_collapsed(
             axis='columns')
 
     # Compose graph with all incoming and outgoing graphs
-    G = nx.algorithms.operators.compose_all(
-        list(df['incoming_graph'].values)+list(df['outgoing_graph'].values))
+    # TODO this does not work, because all simple paths will include paths that don't actually exist
+    # for example, it generates this: https://drive.google.com/file/d/1mmpore-FLxWZwxQ0TDZjeTyvLpTA8Mnb/view?usp=sharing
+    # in which worhsip points to auro of silence
+    # we should instead build all simple paths between every pair of cards or a card and individual entities
+    # than compose all simple paths
+    if target == 'card':
+        composable = list(df['incoming_graph'].values) + \
+            list(df['outgoing_graph'].values)
+    elif target == 'entity':
+        composable = list(df['outgoing_graph'].values)
+    G = nx.algorithms.operators.compose_all(composable)
 
     paths_list = []
-    all_card_nodes_ids = list(df[node_id_col].unique())
+
+    def get_all_target_nodes(target_type: str = 'card'):
+        if target_type == 'card':
+            return list(df[node_id_col].unique())
+        elif target_type == 'entity':
+            array_of_entity_nodes = df['outgoing_graph'].progress_apply(lambda g:
+                                                                        [n for n, d in g.nodes(
+                                                                            data=True) if d['type'] == 'entity']
+                                                                        )
+            return set([x for lis in array_of_entity_nodes for x in lis])
+
+    def get_targets(node_id, get_all_target_nodes=get_all_target_nodes, target_type=target):
+        """Return list of target nodes for simple paths"""
+        return [x for x in get_all_target_nodes(target_type) if x != node_id]
+
     df['simple_paths'] = df[node_id_col].progress_apply(
         lambda node_id: nx.all_simple_paths(
-            G, node_id, [x for x in all_card_nodes_ids if x != node_id])
+            G, node_id, get_targets(node_id, target_type=target))
     )
     logger.info(f"Create df['collapsed_simple_paths']")
     df['collapsed_simple_paths'] = df['simple_paths'].progress_apply(
@@ -393,7 +440,7 @@ def save_decks_graphs_to_db(
     engine=ENGINE,
     decks_tname=DECKS_TNAME,
     decks_graphs_tname=DECKS_GRAPH_TNAME,
-
+    target='card',
 
 ) -> List[nx.Graph]:
     """Calculate graphs for deck_ids
@@ -409,11 +456,14 @@ def save_decks_graphs_to_db(
         df_orig = load_decks_cards_as_dataframe(deck_id)
         df = create_cards_graphs(df_orig.copy())
         df = aggregate_cards_and_set_weights(df)
-        H = compose_all_graphs_collapsed(df, node_id_col='card_unit_id')
+        H = compose_all_graphs_collapsed(
+            df, node_id_col='card_unit_id', target=target)
         graphs.append(H)
 
         res = pd.DataFrame([{'deck_id': deck_id,
-                           'graph_json': json.dumps(json_graph.node_link_data(H))}])
+                           f'graph_json': json.dumps(json_graph.node_link_data(H)),
+                            'graph_target': target
+                             }])
         res = res.set_index('deck_id')
 
         # Perform upsert
@@ -421,13 +471,23 @@ def save_decks_graphs_to_db(
             res.to_sql(decks_graphs_tname, engine, if_exists='fail')
         except ValueError:
 
+            # def create_col_query(col):
+            #     return f"""
+            #             ALTER TABLE {decks_graphs_tname}
+            #             ADD COLUMN IF NOT EXISTS {col} JSON;
+            #             """
+
             delete_query = f"""
                 DELETE from {decks_graphs_tname}
-                WHERE deck_id = '{deck_id}'
+                WHERE deck_id = '{deck_id}' AND graph_target = '{target}'
             """
             # WHERE deck_id IN ({", ".join([f"'{x}'" for x in deck_ids])})
             with engine.connect() as con:
                 con.execute(delete_query)
+
+                # for col in res.columns:
+                #     if col not in [deck_id]:
+                #         con.execute(create_col_query(col))
 
             res.to_sql(decks_graphs_tname, engine, if_exists='append')
 
@@ -440,6 +500,7 @@ def load_decks_graphs_from_db(
     deck_ids: List[str],  # deck_slug in database
     engine=ENGINE,
     decks_graphs_tname=DECKS_GRAPH_TNAME,
+    target='card',
 ) -> List[nx.Graph]:
     """Load decks graphs as json and de-serialize them to nx.Graphs
     """
@@ -450,33 +511,37 @@ def load_decks_graphs_from_db(
     SELECT *
     FROM {decks_graphs_tname}
     WHERE deck_id IN ({", ".join([f"'{x}'" for x in deck_ids])})
+    AND   graph_target = '{target}'
     """
     df = pd.read_sql_query(query, engine)
-    df['graph'] = df['graph_json'].apply(lambda x:
-                                         json_graph.node_link_graph(json.loads(x)))
+    df['graph'] = df[f'graph_json'].apply(lambda x:
+                                          json_graph.node_link_graph(json.loads(x)))
 
     return list(df['graph'].values)
 
 
 # %% Draw deck graph
-if True:
+if False:
     # deckids = ['00deck_frustrado_dano_as_is']
     deckids = [
         # '00deck_frustrado_dano_as_is',
         # '00deck_passarinhos_as_is',
         '00deck_alsios_combado'
     ]
-    H = save_decks_graphs_to_db(deck_ids=deckids)[0]
-    G = load_decks_graphs_from_db(deck_ids=deckids)[0]
+    target = 'entity'
+    H = save_decks_graphs_to_db(deck_ids=deckids, target=target)[0]
+    G = load_decks_graphs_from_db(deck_ids=deckids, target=target)[0]
     assert nx.is_isomorphic(H, G)
-    draw_graph(G, f'pics/decks_graphs/{deckids[0]}.png')
+    draw_graph(G, f'pics/decks_graphs/{deckids[0]}_{target}.png')
+
 
 # %% Draw two cards graph (it will draw left to right)
-if False:
+if True:
     # cards_slugs = ['incinerate', 'pardic_firecat']
     # cards_slugs = ['aura_of_silence', 'worship']
     # cards_slugs = ['thunderbolt', 'pardic_firecat']
-    cards_slugs = ['swords_to_plowshares', 'white_knight']
+    # cards_slugs = ['swords_to_plowshares', 'white_knight']
+    cards_slugs = ['worship', 'aura_of_silence']
     df_orig = load_cards_as_dataframe(cards_slugs)
     df = create_cards_graphs(df_orig.copy())
     outgoing = df.loc[df['name_slug'] ==
