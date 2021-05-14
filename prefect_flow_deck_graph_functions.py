@@ -307,7 +307,7 @@ def collapse_single_path(digraph, path):
                 (e_at.get('type', None) == 'token_to_head_part')
                 and (e_at.get('label', None) == 'ROOT')
             ):
-                short_label += n_at.get('token_node_text')
+                short_label += f"{n_at.get('token_node_text')} in {n_at.get('part_type') or ''} of {n_at.get('pop_type') or ''}"
 
         labels.append(label)
         if short_label:
@@ -361,8 +361,6 @@ def compose_all_graphs_collapsed(
         row['outgoing_graph'], {row['outgoing_card_original_label']: row[node_id_col]}),
         axis='columns')
 
-    # Set card nodes weights
-
     # For pyvis layout: set
     # group=card_type,
     # title=hover_text(whatever I want),
@@ -381,6 +379,7 @@ def compose_all_graphs_collapsed(
                 'group': row['type'],
                 'title': row['text'],
                 'size': row['weight'],
+                'weight': row['weight'],
                 'label': get_label(row),
                 # To show card image on hover
                 # 'title': '''<img src="https://c1.scryfall.com/file/scryfall-cards/normal/front/b/f/bf87803b-e7c6-4122-add4-72e596167b7e.jpg" width="150">''',
@@ -391,19 +390,10 @@ def compose_all_graphs_collapsed(
     # Compose graph with all incoming and outgoing graphs
     # TODO this does not work, because all simple paths will include paths that don't actually exist
     # for example, it generates this: https://drive.google.com/file/d/1mmpore-FLxWZwxQ0TDZjeTyvLpTA8Mnb/view?usp=sharing
-    # in which worhsip points to auro of silence
+    # in which worhsip points to aura of silence
     # we should instead build all simple paths between every pair of cards or a card and individual entities
     # than compose all simple paths
-    if target == 'card':
-        composable = list(df['incoming_graph'].values) + \
-            list(df['outgoing_graph'].values)
-    elif target == 'entity':
-        composable = list(df['outgoing_graph'].values)
-    G = nx.algorithms.operators.compose_all(composable)
-
-    paths_list = []
-
-    def get_all_target_nodes(target_type: str = 'card'):
+    def get_all_target_nodes(target_type: str = 'card', df=df):
         if target_type == 'card':
             return list(df[node_id_col].unique())
         elif target_type == 'entity':
@@ -417,20 +407,45 @@ def compose_all_graphs_collapsed(
         """Return list of target nodes for simple paths"""
         return [x for x in get_all_target_nodes(target_type) if x != node_id]
 
-    df['simple_paths'] = df[node_id_col].progress_apply(
-        lambda node_id: nx.all_simple_paths(
-            G, node_id, get_targets(node_id, target_type=target))
-    )
-    logger.info(f"Create df['collapsed_simple_paths']")
-    df['collapsed_simple_paths'] = df['simple_paths'].progress_apply(
-        lambda paths: [collapse_single_path(G, path)
-                       for path in paths]
-    )
-    logger.info(
-        f"H = nx.algorithms.operators.compose_all(df['collapsed_simple_paths'])")
-    all_single_paths = [
-        item for sublist in df['collapsed_simple_paths'].values for item in sublist]
-    H = nx.algorithms.operators.compose_all(all_single_paths)
+    def get_all_collapsed_simple_paths(node_id, df=df, get_targets=get_targets, target_type=target):
+        """Return a list of graphs containing only two nodes:
+        node_id and target_node_id,
+        with edges representing simple paths between them
+        """
+        two_node_graphs_list = []
+        # for each target_node_id
+        for target_node_id in get_targets(node_id):
+            #   compose graph G1 from outgoing node_id to incoming target_node_id
+            if target_type == 'card':
+                out = df.loc[df[node_id_col] ==
+                             node_id, 'outgoing_graph'].iloc[0]
+                incom = df.loc[df[node_id_col] ==
+                               target_node_id, 'incoming_graph'].iloc[0]
+                G1 = nx.algorithms.operators.compose_all([out, incom])
+            if target_type == 'entity':
+                G1 = df.loc[df[node_id_col] ==
+                            node_id, 'outgoing_graph'].iloc[0]
+            #   get all simple paths in G1 from node_id to target_node_id
+            simpaths = nx.all_simple_paths(G1, node_id, target_node_id)
+            #   collapse all simple paths in G1 to generate G2 (only two nodes, multiple edges)
+            collapsed_spaths = [collapse_single_path(
+                G1, path) for path in simpaths]
+            if collapsed_spaths:
+                G2 = nx.algorithms.operators.compose_all(collapsed_spaths)
+                #   extend collapsed_paths_list
+                two_node_graphs_list.append(G2)
+        return two_node_graphs_list
+
+    # Get a column with all two nodes graphs in it
+    logger.info(f"Get a column with all two nodes graphs in it")
+    df['two_node_graphs_list'] = df[node_id_col].progress_apply(
+        get_all_collapsed_simple_paths)
+
+    all_two_node_graphs_list = [
+        g for graph_list in df['two_node_graphs_list'].values for g in graph_list]
+
+    logger.info(f"Compose all_two_node_graphs_list")
+    H = nx.algorithms.operators.compose_all(all_two_node_graphs_list)
 
     return H
 
@@ -536,7 +551,7 @@ if False:
 
 
 # %% Draw two cards graph (it will draw left to right)
-if True:
+if False:
     # cards_slugs = ['incinerate', 'pardic_firecat']
     # cards_slugs = ['aura_of_silence', 'worship']
     # cards_slugs = ['thunderbolt', 'pardic_firecat']
