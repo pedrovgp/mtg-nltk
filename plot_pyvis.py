@@ -2,7 +2,12 @@
 
 from pyvis.network import Network
 import networkx as nx
-from prefect_flow_deck_graph_functions import load_decks_graphs_from_db, ENGINE
+from prefect_flow_deck_graph_functions import (
+    save_decks_graphs_to_db,
+    load_decks_graphs_from_db,
+    draw_graph,
+    ENGINE
+)
 
 # %% Options for visual layout
 
@@ -103,34 +108,40 @@ var options = {
 
 
 # %% Create pyvis Network
-nt = Network('700px', '700px')  # , notebook=True)
-nt.set_options(get_options())
+nt = Network('800px', '700px')  # , notebook=True)
+# nt.set_options(get_options())
 # nt.show_buttons(filter_=['physics'])
-# nt.show_buttons()
-
-# %% Example graph
-nx_graph = nx.cycle_graph(10)
-nx_graph.nodes[1]['title'] = 'Number 1'
-nx_graph.nodes[1]['group'] = 1
-nx_graph.nodes[3]['title'] = 'I belong to a different group!'
-nx_graph.nodes[3]['group'] = 10
-nx_graph.add_node(20, size=20, title='couple', group=2)
-nx_graph.add_node(21, size=15, title='couple', group=2)
-nx_graph.add_edge(20, 21, weight=5)
-nx_graph.add_node(25, size=25, label='lonely',
-                  title='lonely node', group=3)
-# nt.from_nx(nx_graph)
-# nt.show(f'./graphs/nx.html')
+nt.show_buttons()
 
 # %% Actual deck graph
 deck_ids = [
     # '00deck_frustrado_dano_as_is',
     # '00deck_passarinhos_as_is',
-    '00deck_alsios_combado'
+    # '00deck_alsios_combado',
+    'pv_white',
 ]
 # ds = pd.read_sql('decks', ENGINE, columns=['deck_id'])
 # deck_ids = list(ds.deck_id.unique())
+target = 'card'
+save_decks_graphs_to_db(deck_ids=deck_ids, target=target)
 for dcid in deck_ids:
-    G = load_decks_graphs_from_db(deck_ids=[dcid])[0]
+    G = load_decks_graphs_from_db(deck_ids=[dcid], target=target)[0]
+    G.remove_nodes_from([n for n, d in G.nodes(
+        data=True) if d['card_name'] in ['Island', 'Plains', 'Forbidding Watchtower']])
+    # entity_nodes = [n for n, d in G.nodes(
+    #     data=True) if d['type'] == 'entity']
+    # nx.set_node_attributes(
+    #     G,
+    #     # {node_id: {attr_name: value}}
+    #     {node_id: {
+    #         'x': 100,
+    #     } for node_id in entity_nodes
+    #     })
     nt.from_nx(G)
-    nt.show(f'./graphs/{dcid}.html')
+    nt.show(f'./graphs/{dcid}-{target}.html')
+    # nx.set_edge_attributes(
+    #     G,
+    #     'pays_for',
+    #     name='label'
+    # )
+    draw_graph(G, f'./graphs/{dcid}-{target}.png')
