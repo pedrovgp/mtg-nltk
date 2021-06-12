@@ -31,7 +31,7 @@ We could get info from the meta game and build decks from meta cards. Or we coul
 Both approaches are valid and would profit from all the human learning in this arena.
 
 But the approach proposed here is slightly different, the idea is to make the engine to reason more from cards relations than from human usage.
-So, it tries to build features from cards relations, inferred by their text, properties and games rules; and learn some mapping from these features to a ranking of goodness of a deck. This ranking may be learned from meta game or decks stats and history, but than the knowledge acquired by the model would be able to generalize to new cards and sets.
+So, it tries to build features from cards relations, inferred by their text, properties and game rules; and learn some mapping from these features to a ranking of goodness of a deck. This ranking may be learned from meta game or decks stats and history, but than the knowledge acquired by the model would be able to generalize to new cards and sets.
 
 ### Building blocks
 
@@ -50,8 +50,9 @@ Joining the graphs would result in a path (a established relation) between the t
 Actually, it describes the relation 'Terror' -> 'Soltari Visionary'. The inverse relation would look different.
 
 Joining on the in and out graphs of all cards in a deck would result in the decks relationship graph. That's where we want to extract our features from.
-This is still ongoing work (help is welcome and appreciated, I would love to discuss ideias). A simplified collased "deck relations graph" could look like this:
+This is still ongoing work (help is welcome and appreciated, I would love to discuss ideias). A simplified collapsed "deck relations graph" could look like this:
 
+<a name="deck-graph-relations"></a>
 ![deck graph relations](pics/decks_graphs/00deck_frustrado_dano_as_is.png "deck graph relations")
 
 Files 04a and 04b outline a few other ideas (not yet implemented).
@@ -71,15 +72,15 @@ The fitness would be a function of:
 1. Sinergy: some measure of how cards in the deck relate to each other  
 1. Antergy: some measure of how cards in the deck relate to a second set of cards (which may be a specific deck)
 
-Sinergy features could be built from the "deck relations graph".
+Sinergy features could be built from the ["deck relations graph"](#deck-graph-relations).
 
 Antergy features could be built from a graph built from the deck to the opposite set of cards (TBD).
 
 Lastly, we can come up with some heuristics mapping these features to a fitness measure. But that is probably very hard to do and would have a very small chance of success (being able to measure if a deck is better/stronger than another).
 
-The alternative is to find some measure of deck fitness available out there. For example, we could use win rate from [untapped.gg](https://mtga.untapped.gg/meta/tierlist) or data from [mtgatool](https://mtgatool.com/) or [mtgarena.pro](https://mtgarena.pro/meta/archetypes#rank-28;sort-W;archetype-34) or [mtgmeta](https://mtgmeta.io/metagame) (this one has an [API](https://mtgmeta.io/docs#apimetagame) for patreon members) as a target for fitting a model with the features above. Provided that we find an adequate model, we could apply the genetic algo to improve decks based on this calculated fitness.
+The alternative is to find some measure of deck fitness available out there. For example, we could use win rate from [untapped.gg](https://mtga.untapped.gg/meta/tierlist) or data from [mtgatool](https://mtgatool.com/) or [mtgarena.pro](https://mtgarena.pro/meta/archetypes#rank-28;sort-W;archetype-34) or [mtgmeta](https://mtgmeta.io/metagame) (this one has an [API](https://mtgmeta.io/docs#apimetagame) for patreon members) as a target for fitting a model with the features above. Provided that we find an adequate model, we could apply the genetic algorithm to improve decks based on this calculated fitness.
 
-### Some to do's, for interested people (including myself)
+### Some to do's
 
 1. Find and gather data on decks stats (victories, etc.) -> This can help building a target for a fitness model  
   a. Scrape [untapped.gg](https://mtga.untapped.gg/meta/tierlist)  
