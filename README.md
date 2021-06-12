@@ -83,11 +83,11 @@ The alternative is to find some measure of deck fitness available out there. For
 ### Some to do's
 
 1. Find and gather data on decks stats (victories, etc.) -> This can help building a target for a fitness model  
-  a. Scrape [untapped.gg](https://mtga.untapped.gg/meta/tierlist)  
+  a. Use the [mtgmeta API](https://mtgmeta.io/docs#apimetagame)
 1. Find, gather and explore data on meta game and how it evolved with time, for different formats. -> This can bring insights about how the importance of our features evolve over time (if they do) and may allow us to relativize features for our models  
 1. Engineer features from the decks graph. -> aka. build sinergy and antergy features  
 1. Engineer individual cards features. -> aka. build static features  
-1. Build fitness model from meta game and deck stats
+1. Build fitness model for a target defined in step 1 meta game and deck stats
 1. Add modelled fitness to genetic optimizer
 
 
