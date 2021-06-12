@@ -122,12 +122,12 @@ deck_ids = [
 ]
 # ds = pd.read_sql('decks', ENGINE, columns=['deck_id'])
 # deck_ids = list(ds.deck_id.unique())
-target = 'card'
-save_decks_graphs_to_db(deck_ids=deck_ids, target=target)
+target = 'entity'
+# save_decks_graphs_to_db(deck_ids=deck_ids, target=target)
 for dcid in deck_ids:
     G = load_decks_graphs_from_db(deck_ids=[dcid], target=target)[0]
     G.remove_nodes_from([n for n, d in G.nodes(
-        data=True) if d['card_name'] in ['Island', 'Plains', 'Forbidding Watchtower']])
+        data=True) if d.get('card_name', None) in ['Island', 'Plains', 'Forbidding Watchtower']])
     # entity_nodes = [n for n, d in G.nodes(
     #     data=True) if d['type'] == 'entity']
     # nx.set_node_attributes(

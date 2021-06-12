@@ -135,7 +135,7 @@ def draw_graph(G, filename='test.png'):
     pygv = relayout(pygv)
 
     pygv.layout(prog='dot')
-    pygv.draw(filename)
+    pygv.draw(filename, prog="neato")
 
     # from IPython.display import Image
     # return Image(filename)
