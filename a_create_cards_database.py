@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+# %%
+# # -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -73,22 +74,25 @@ logger.info(linecache.getline(
 tqdm.pandas(desc="Progress")
 
 # %% Download AllPrintings.json if it does not exist
+# https://mtgjson.com/api/v5/AllPrintings.json
 logger.info("Download AllPrintings.json if it does not exist")
-allprintings_fname = "./AllPrintings.json"
+allprintings_fname = "./AllPrintings20210615.json"
 if not os.path.isfile(allprintings_fname):
-    raise Exception(f'Sorry, did not find AllPrintings.json in the projects root folder. '
-                    'Please, download it here https://drive.google.com/file/d/1yMoKJ-ae7MstsXHleNjjZMIlQ_2ZmJhq/view?usp=sharing '
+    raise Exception(f'Sorry, did not find AllPrintings20210615.json in the projects root folder. '
+                    'Please, download it here https://drive.google.com/file/d/1LnOrDqWODa9tSNfHxFh3qgVPMnOnMCHO/view?usp=sharing '
                     'and put it in the same folder as this file.')
     import requests
     url = "https://drive.google.com/file/d/1yMoKJ-ae7MstsXHleNjjZMIlQ_2ZmJhq/view?usp=sharing"
     r = requests.get(url, allow_redirects=True)
     open(allprintings_fname, 'wb').write(r.content)
 
-# %%
-# https://mtgjson.com/api/v5/AllPrintings.json
-sets = json.load(open("./AllPrintings.json", "rb"))
+# %% Load data
+sets = json.load(open(allprintings_fname, "rb"))['data']
+# sets = json.load(open("./AllPrintings.json", "rb"))
 # sets = json.load(open('./AllSets.json', 'rb'))
 # -
+
+# %% Cards list definition
 
 cards_all = []
 for k, sett in sets.items():
@@ -124,7 +128,13 @@ logger.info(engine.connect())
 
 export_table_name = "cards_text_parts"
 
-# ## Helping functions
+# %% Save sets release dates
+release_dates = pd.DataFrame([{'set_id': k, 'release_date': pd.to_datetime(
+    v['releaseDate'])} for k, v in sets.items()])
+release_dates.set_index(["set_id"]).to_sql(
+    "set_release_dates", engine, if_exists="replace")
+
+# %% Helping functions
 
 # + code_folding=[0]
 # Split dataframelist
@@ -279,19 +289,20 @@ assert cards_df[cards_df["text_preworked"].str.contains("\(").fillna(False)][
 
 # ### Export
 
-# + deletable=false editable=false run_control={"frozen": true}
 # # Convert lists and dicts to json to avoid ProgrammingError: (psycopg2.ProgrammingError) can't adapt type 'dict'
-# cards_df_export = .copy()
-# types = {col:type(cards_df_export.iloc[0][col]) for col in cards_df_export.columns}
-#
+# cards_df_export = cards_df.copy()
+# types = {col: type(cards_df_export.iloc[0][col])
+#          for col in cards_df_export.columns}
+
 # for col, typ in types.items():
 #     if type in ['list', 'dict']:
 #         import json
-#         cards_df_export[col] = cards_df_export[col].apply(lambda x: json.dumps(x))
-# -
+#         cards_df_export[col] = cards_df_export[col].apply(
+#             lambda x: json.dumps(x))
 
 # Export to sql
 logger.info("cards_df to sql")
+cards_df = cards_df.drop(columns=['identifiers'])
 cards_df.set_index(["id", "name", "name_slug"]).to_sql(
     "cards", engine, if_exists="replace")
 
