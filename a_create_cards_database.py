@@ -447,6 +447,21 @@ def is_ability_sentence(sentence):
     raise Exception("We should never get here")
 
 
+def extract_abilities_from_sentence(sentence: str) -> list:
+    """Return list of abilities the card posesses"""
+    if not is_ability_sentence(sentence=sentence):
+        return []
+    abis = []
+    exceptions = [
+        "Cycling abilities you activate cost up to {2} less to activate."]
+    if sentence in exceptions:
+        return []
+    elems = sentence.replace(";", ",").split(", ")
+    for elem in elems:
+        ab = re.search(ability_start_pattern, elem, re.IGNORECASE)
+        abis.append(ab.group())
+    return abis
+
 # -
 
 # ## Lets detetect all paragraphs types (and keep each ability as a separate paragraph)
@@ -517,6 +532,9 @@ def get_aspas(text):
 
 
 def get_paragraphs_and_types_df(card_row):
+    """For each card, return a dataframe with 
+    a row per paragraph in the card text_preworked"""
+
     res = pd.DataFrame()
     temp = pd.DataFrame()
 
@@ -555,6 +573,16 @@ cards_df["df_paragraphs"] = cards_df.progress_apply(
 
 cards_df_paragraphs = pd.concat(cards_df["df_paragraphs"].values)
 cards_df_paragraphs.head(4)
+
+# Extract abilities from paragarphs
+cards_df_abilities = cards_df_paragraphs[["card_id", "paragraph"]].copy()
+cards_df_abilities["abilities"] = cards_df_abilities["paragraph"].apply(
+    extract_abilities_from_sentence)
+cards_df_abilities = cards_df_abilities.drop(columns=["paragraph"])
+cards_df_abilities = cards_df_abilities.explode("abilities").dropna()
+
+cards_df_abilities.set_index("card_id").to_sql(
+    "cards_abilities", engine, if_exists="replace")
 
 # + deletable=false editable=false run_control={"frozen": true}
 # # Show cards with triggered abilities
