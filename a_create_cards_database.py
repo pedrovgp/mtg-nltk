@@ -38,6 +38,13 @@ import inspect
 import linecache
 import os
 
+# import dask
+# import dask.dataframe as dd
+
+# from dask.diagnostics import ProgressBar
+# ProgressBar().register()
+
+# %%
 try:
     __file__
 except NameError:
@@ -88,6 +95,7 @@ if not os.path.isfile(allprintings_fname):
 
 # %% Load data
 sets = json.load(open(allprintings_fname, "rb"))['data']
+
 # sets = json.load(open("./AllPrintings.json", "rb"))
 # sets = json.load(open('./AllSets.json', 'rb'))
 # -
@@ -171,12 +179,18 @@ def splitDataFrameList(df, target_column, separator=None):
 
 # -
 
-# # Create dataframe of cards
+# %% Create dataframe of cards
 
 # ## Create tables for cards
 
 cards = cards_all
 cards_df = pd.DataFrame.from_dict(cards)
+
+
+# %% Try dask
+# cards_df = cards_df_pandas
+# cards_df = dd.from_pandas(cards_df, npartitions=4)
+
 cards_df = cards_df.drop_duplicates(subset=["name"])
 cards_df = cards_df.drop(
     columns=[
@@ -189,19 +203,26 @@ cards_df = cards_df.drop(
     ],
     errors="ignore",
 )
+# print(cards_df.columns)
+# %% Enhancing pt
+
 # cards_df = cards_df.sample(200)
 # cards_df = cards_df[cards_df['name'].isin(all_cards_names_in_decks)]
-cards_df['name_slug'] = cards_df['name'].apply(slugify, separator="_")
+cards_df['name_slug'] = cards_df['name'].apply(
+    func=slugify, separator="_")
 
+# %%
 # ### Add and transform features
 logger.info("p/t")
 # + code_folding=[]
 # Make numeric power and toughness
-cards_df["power_num"] = pd.to_numeric(cards_df["power"], errors="coerce")
+cards_df["power_num"] = pd.to_numeric(
+    cards_df["power"], errors="coerce")
 cards_df["toughness_num"] = pd.to_numeric(
     cards_df["toughness"], errors="coerce")
 # -
 
+# %% Enhancing mana cost
 logger.info("mana costs")
 # Add colored and generic cmcs
 # Find all patterns like {.*?} [1], than find all {\d} or {X} (this is generic) [2]
@@ -560,12 +581,18 @@ def get_paragraphs_and_types_df(card_row):
     return res
 
 
-# -
+# %%
 logger.info(
     """cards_df['df_paragraphs'] = cards_df.progress_apply(get_paragraphs_and_types_df, axis=1)"""
 )
 cards_df["df_paragraphs"] = cards_df.progress_apply(
     get_paragraphs_and_types_df, axis=1)
+# temp = dd.from_pandas(cards_df, npartitions=4)
+# temp["df_paragraphs"] = temp.apply(
+#     get_paragraphs_and_types_df, axis=1, meta=str
+# )
+# cards_df = temp.compute()
+# %%
 
 # +
 # cards_df[['text_preworked','df_paragraphs']].iloc[21]['df_paragraphs']
@@ -654,7 +681,13 @@ logger.info(
 cards_df_paragraphs["pop"] = cards_df_paragraphs.progress_apply(
     get_pop_and_complements_df, axis=1
 )
+# temp = dd.from_pandas(cards_df_paragraphs, npartitions=4)
+# temp["pop"] = temp.apply(
+#     get_pop_and_complements_df, axis=1, meta=str
+# )
+# cards_df_paragraphs = temp.compute()
 
+# %%
 # + deletable=false editable=false run_control={"frozen": true}
 # cards_df_paragraphs.iloc[3]['pop']
 # -
