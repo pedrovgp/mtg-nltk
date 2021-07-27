@@ -51,6 +51,8 @@ import inspect
 import linecache
 import os
 
+import config
+
 try:
     __file__
 except NameError:
@@ -125,7 +127,7 @@ mains_col_names = [
 ]
 
 
-engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+engine = create_engine(config.DB_STR)
 engine.connect()
 
 logger.info(engine.connect())

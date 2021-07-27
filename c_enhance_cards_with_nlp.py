@@ -35,6 +35,7 @@
 # outgoing_edges_df = edges from the nodes above
 # incoming_nodes_df = nodes for cards and attribute entities
 # incoming_edges_df = edges from the nodes above
+import config
 
 import datetime
 import hashlib
@@ -176,7 +177,7 @@ mains_col_names = [
 logger.info(linecache.getline(
     __file__, inspect.getlineno(inspect.currentframe()) + 1))
 
-engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+engine = create_engine(config.DB_STR)
 engine.connect()
 
 cards_text_parts_table_name = "cards_text_parts"

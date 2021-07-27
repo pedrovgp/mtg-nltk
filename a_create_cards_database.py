@@ -38,6 +38,8 @@ import inspect
 import linecache
 import os
 
+import config
+
 try:
     __file__
 except NameError:
@@ -121,7 +123,7 @@ mains_col_names = [
 ]
 
 
-engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+engine = create_engine(config.DB_STR)
 engine.connect()
 
 logger.info(engine.connect())
@@ -240,7 +242,14 @@ def prework_text(card):
     return t
 
 
+def count_words(preworked_text):
+    t = preworked_text.replace('\n', ' ').replace('\t', ' ')
+    return len(t.split(' '))
+
+
 cards_df["text_preworked"] = cards_df.apply(prework_text, axis=1)
+cards_df["text_preworked_word_count"] = cards_df["text_preworked"].apply(
+    count_words)
 
 
 # cards_df['text_preworked']

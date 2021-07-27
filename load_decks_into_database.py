@@ -22,7 +22,7 @@
 #
 # **DESIRED RESULT**:
 # table = idx | card_name | deck_name
-
+import config
 import os
 from bs4 import BeautifulSoup as BS
 import requests
@@ -48,7 +48,7 @@ tqdm.pandas(desc="Progress")
 # # Params
 
 
-engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+engine = create_engine(config.DB_STR)
 engine.connect()
 
 decks_dir = "./decks/"
