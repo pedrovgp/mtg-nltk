@@ -11,3 +11,6 @@ poetry.lock
 AllPrintings.json
 SetList.json
 cards_links_list.pkl
+*.png
+*.jpg
+*.jpeg
