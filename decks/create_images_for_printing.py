@@ -23,7 +23,8 @@ from sqlalchemy import create_engine
 from tqdm import tqdm
 import pandas as pd
 import requests
-
+import requests_cache
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,8 @@ logger = logging.getLogger(__name__)
 engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
 
 tqdm.pandas(desc="Progress")
+requests_cache.install_cache('scryfall_cache', backend='sqlite', expire_after=24*60*60)
+
 # import the necessary packages
 
 # defining argument parsers
@@ -43,6 +46,28 @@ width_std = endX_std - startX_std
 height_std = endY_std - startY_std
 
 max_h, max_w = 2560 + 1000, 3264
+
+
+def get_card_updated_data(scryfall_id) -> str:
+    """Gets updated data from scryfall
+
+    Args:
+        scryfall_id ([type]): [description]
+
+    Returns:
+        json: result from scryfalls card api
+
+    ref: https://scryfall.com/docs/api/cards/id
+    ex scryfall_id="e9d5aee0-5963-41db-a22b-cfea40a967a3"
+    """
+    r = requests.get(
+        f"https://api.scryfall.com/cards/{scryfall_id}",
+    )
+    if r.status_code == 200:
+
+        return json.loads(r.text)
+
+    raise Exception("Could not download os save card image")
 
 
 def download_card_image(scryfall_id, card_name: str) -> str:
@@ -70,7 +95,7 @@ def download_card_image(scryfall_id, card_name: str) -> str:
         stream=True,
     )
     if r.status_code == 200:
-        with open(path, "wb") as f:
+        with open(filename, "wb") as f:
             for chunk in r:
                 f.write(chunk)
 
@@ -156,10 +181,27 @@ def crop_to_stadard(
     return new_image
 
 
+def enhance_with_scryfall_api(df: pd.DataFrame) -> pd.DataFrame:
+    """Add current scryfall data about the card"""
+    df["scryfall_data"] = df["scryfallId"].progress_apply(
+        get_card_updated_data,
+    )
+    return df
+
+
+def add_price_usd(df: pd.DataFrame) -> pd.DataFrame:
+    """Add current scryfall USD prices"""
+    df["price_usd"] = df["scryfall_data"].progress_apply(
+        lambda x: x.get("price", {}).get("usd", np.nan),
+    )
+    return df
+
+
 def add_img_paths_col(df: pd.DataFrame) -> pd.DataFrame:
     """Downloads images and saves local path to
-    img_local_path column"""
-    df["img_local_path"] = df.progress_apply(
+    image_local_path column
+    """
+    df["image_local_path"] = df.progress_apply(
         lambda row: download_card_image(row.scryfallId, card_name=row.card_name),
         axis="columns",
     )
@@ -168,14 +210,28 @@ def add_img_paths_col(df: pd.DataFrame) -> pd.DataFrame:
 
 def add_image_height_and_width(df: pd.DataFrame) -> pd.DataFrame:
     """Adds columns img_cv2, height and width"""
-    df["img_cv2"] = df["img_local_path"].progress_apply(lambda x: cv2.imread(x))
-    df["height"] = df["img_cv2"].progress_apply(lambda x: x.shape[0])
-    df["width"] = df["img_cv2"].progress_apply(lambda x: x.shape[1])
+    df["img_cv2"] = df["image_local_path"].progress_apply(lambda x: cv2.imread(x))
+    df["img_cv2"] = df["img_cv2"].fillna(
+        df["image_local_path"].progress_apply(lambda x: cv2.imread(os.path.realpath(x)))
+    )
+    if pd.isnull(df["img_cv2"]).any():
+        problems = df[pd.isnull(df["img_cv2"])]
+        problems.to_csv('problems.csv')
+        raise Exception('There are empty images in the dataframe. See "problems".')
+    
+    df["height"] = df["img_cv2"].progress_apply(
+        lambda x: x.shape[0] if x is not None else np.nan
+    )
+    df["width"] = df["img_cv2"].progress_apply(
+        lambda x: x.shape[1] if x is not None else np.nan
+    )
 
     return df
 
 
-def correct_aspect_ratio(df: pd.DataFrame, tolerance: float = 0.02) -> pd.DataFrame:
+def should_correct_aspect_ratio(
+    df: pd.DataFrame, tolerance: float = 0.02
+) -> pd.DataFrame:
     """If image file does not meet aspect ration 88/63,
     resize the image
     Tolerates by default 2% difference in aspect ratio
@@ -190,13 +246,43 @@ def correct_aspect_ratio(df: pd.DataFrame, tolerance: float = 0.02) -> pd.DataFr
         np.abs(df["aspect_ratio"] - EXPECTED_RATIO) / (EXPECTED_RATIO) > tolerance
     )
 
-    # TODO shrink width if aspect ration is lower than expected
-    # TODO shrink height if aspect ration is higher than expected
+    # shrink height if aspect ration is higher than expected
+    problems = df[pd.isnull(df["height"])]
+    problems2 = df[pd.isnull(df["aspect_ratio_correct_by_proportion"])]
     df["new_height"] = df["height"].where(
-        df["aspect_ratio_higher"],
-        (df["height"] * df["aspect_ratio_correct_by_proportion"]).apply(int),
+        ~df["aspect_ratio_higher"],
+        np.int((df["height"] * df["aspect_ratio_correct_by_proportion"])),
     )
-    b = cv2.resize(img, (4, 4), interpolation=cv2.INTER_AREA)
+    # shrink width if aspect ration is lower than expected
+    df["new_edith"] = df["width"].where(
+        df["aspect_ratio_higher"],
+        np.int((df["width"] * df["aspect_ratio_correct_by_proportion"])),
+    )
+
+    return df
+
+
+def generate_deck_img_dir(df: pd.DataFrame, deck_slug: str) -> pd.DataFrame:
+    """Generates images in deck image dirs, risezed if needed"""
+    Path(f"./deck_images/{deck_slug}").mkdir(parents=True, exist_ok=True)
+    df["deck_image_path"] = df.apply(
+        lambda row: f"./deck_images/{deck_slug}/{row.card_id_in_deck}-{row.card_name}-{'resized' if row.should_resize else ''}",
+        axis="columns",
+    )
+
+    df["img_to_save"] = df.apply(
+        lambda row: row.img_cv2
+        if row.should_resize
+        else cv2.resize(
+            row.img_cv2, (row.new_height, row.new_width), interpolation=cv2.INTER_AREA
+        ),
+        axis="columns",
+    )
+
+    df.apply(
+        lambda row: cv2.imwrite(row.deck_image_path, row.img_to_save),
+        axis="columns",
+    )
 
     return df
 
@@ -216,17 +302,22 @@ if __name__ == "__main__":
     deck_df = pd.read_sql_query(deck_df_query, engine)
 
     logger.info(f"Downloading images for deck {DECK_SLUG}")
-    deck_df["img_local_path"] = deck_df.apply(
+    deck_df["image_local_path"] = deck_df.apply(
         lambda row: download_card_image(row.scryfallId, card_name=row.card_name),
         axis="columns",
     )
 
     deck_df = (
-        deck_df.pipe(add_img_paths_col).pipe(add_image_height_and_width)
-        # .pipe(correct_aspect_ratio)
-        # .pipe(copy_images_to_deck_dir)
+        deck_df.pipe(enhance_with_scryfall_api)
+        .pipe(add_price_usd)
+        .pipe(add_img_paths_col)
+        .pipe(add_image_height_and_width)
+        .pipe(should_correct_aspect_ratio)
+        .pipe(generate_deck_img_dir, deck_slug=DECK_SLUG)
         # .pipe(position_imgs_in_A4)
     )
+
+    a = 1
 
     # for filename in tqdm(os.listdir('./images')):
     #     if True in [x in filename for x in to_skip] or 'AVI' in filename:
