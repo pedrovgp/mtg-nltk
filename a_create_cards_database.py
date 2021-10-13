@@ -29,7 +29,7 @@ from sqlalchemy import create_engine
 from tqdm import tqdm
 import json
 import pandas as pd
-import numpy
+import numpy as np
 import re
 from collections import defaultdict
 
@@ -161,7 +161,7 @@ def splitDataFrameList(df, target_column, separator=None):
                 row_accumulator.append(new_row)
         else:
             new_row = row.to_dict()
-            new_row[target_column] = numpy.nan
+            new_row[target_column] = np.nan
             row_accumulator.append(new_row)
 
     new_rows = []
@@ -311,6 +311,8 @@ assert cards_df[cards_df["text_preworked"].str.contains("\(").fillna(False)][
 
 # Export to sql
 logger.info("cards_df to sql")
+for id_col in ['cardKingdomId', 'mcmId', 'mcmMetaId', 'mtgjsonV4Id', 'mtgoFoilId', 'mtgoId', 'multiverseId', 'scryfallId', 'scryfallIllustrationId', 'scryfallOracleId', 'tcgplayerProductId']:
+    cards_df[id_col] = cards_df['identifiers'].apply(lambda x: x.get(id_col, np.nan))
 cards_df = cards_df.drop(columns=['identifiers'])
 cards_df.set_index(["id", "name", "name_slug"]).to_sql(
     "cards", engine, if_exists="replace")
@@ -498,7 +500,7 @@ def splitDataFrameList(df, target_column, separator=None):
                 row_accumulator.append(new_row)
         else:
             new_row = row.to_dict()
-            new_row[target_column] = numpy.nan
+            new_row[target_column] = np.nan
             row_accumulator.append(new_row)
 
     new_rows = []
@@ -528,12 +530,12 @@ def split_abilities_and_keep_the_rest(df_row):
 
 def get_aspas(text):
     if pd.isnull(text):
-        return numpy.nan
+        return np.nan
 
     reg = re.findall(r"\"(.+?)\"", text)
 
     if not reg:
-        return numpy.nan
+        return np.nan
 
     res = reg[0]
 
@@ -685,7 +687,7 @@ cards_df_pops = pd.concat(cards_df_paragraphs["pop"].values, sort=True)
 # index = ['pop_type']
 # values = ['cont']
 #
-# pivot_pop = temp.pivot_table(index=index, values=values, aggfunc=numpy.sum)
+# pivot_pop = temp.pivot_table(index=index, values=values, aggfunc=np.sum)
 # pivot_pop
 # -
 
@@ -814,7 +816,7 @@ named_card_regex = (
 # a = cards_df['text_preworked'].apply(
 #     lambda x: re.findall(named_card_regex, x)
 #     if re.findall(named_card_regex, x)
-#     else numpy.nan
+#     else np.nan
 # ).dropna()
 
 # + deletable=false editable=false hidden=true run_control={"frozen": true}
@@ -860,7 +862,7 @@ cards_df_pop_parts["text_pk"] = cards_df_pop_parts.progress_apply(
 # ## Drop empty pops
 logger.info(linecache.getline(
     __file__, inspect.getlineno(inspect.currentframe()) + 1))
-cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", numpy.nan)
+cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", np.nan)
 logger.info(linecache.getline(
     __file__, inspect.getlineno(inspect.currentframe()) + 1))
 cards_df_pop_parts = cards_df_pop_parts.dropna(subset=["part"])
@@ -899,7 +901,7 @@ logger.info(linecache.getline(
 cards_df_pop_parts = pd.read_sql_table(export_table_name, engine)
 
 cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace(
-    "", numpy.nan).dropna()
+    "", np.nan).dropna()
 cards_df_pop_parts = cards_df_pop_parts.dropna(subset=["part"])
 
 # +
