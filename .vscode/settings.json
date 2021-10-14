@@ -1,4 +1,5 @@
 {
     "python.pythonPath": "/Users/pedro.viana/miniconda3/envs/mtg/bin/python3.8",
-    "python.formatting.provider": "black"
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true
 }
