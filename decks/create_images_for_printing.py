@@ -11,12 +11,8 @@ This file has a function that, given a deck:
 """
 
 from PIL import Image
-from PIL.ExifTags import TAGS
 import os
 from pathlib import Path
-import shutil
-import cv2
-import argparse
 import numpy as np
 from slugify import slugify
 from sqlalchemy import create_engine
@@ -27,7 +23,25 @@ import requests_cache
 import json
 import logging
 
-logger = logging.getLogger(__name__)
+logPathFileName = "../logs/" + "decks_create_images_for_printing.log"
+
+# create logger'
+logger = logging.getLogger("decks_create_images_for_printing")
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+fh = logging.FileHandler(f"{logPathFileName}", mode="w")
+fh.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+# add the handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
 
 engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
 
@@ -90,8 +104,7 @@ def download_card_image(scryfall_id, card_name: str) -> str:
         return path
 
     r = requests.get(
-        f"https://api.scryfall.com/cards/{scryfall_id}",
-        data=dict(format="image", version="png"),
+        f"https://api.scryfall.com/cards/{scryfall_id}?format=image&version=png",
         stream=True,
     )
     if r.status_code == 200:
@@ -102,83 +115,6 @@ def download_card_image(scryfall_id, card_name: str) -> str:
         return path
 
     raise Exception("Could not download os save card image")
-
-
-def pad_with_borders(img, h, w, startX, endX, startY, endY, max_h=max_h, max_w=max_w):
-    """Pad image with borders to achieve a given height and width
-    :return img and new box points"""
-    top = bottom = int((max_h - h) / 2)
-    right = left = int((max_w - w) / 2)
-    new_image = cv2.copyMakeBorder(
-        img,
-        top=top,
-        bottom=bottom,
-        left=left,
-        right=right,
-        borderType=cv2.BORDER_CONSTANT,
-    )
-    new_startX = startX + left
-    new_endX = endX + left
-    new_startY = startY + top
-    new_endY = endY + top
-
-    return new_image, new_startX, new_endX, new_startY, new_endY
-
-
-def crop_to_stadard(
-    img,
-    startX,
-    endX,
-    startY,
-    endY,
-    startX_std=startX_std,
-    endX_std=endX_std,
-    startY_std=startY_std,
-    endY_std=endY_std,
-):
-    if startX >= startX_std:
-        new_image = img[:, startX - startX_std :].copy()
-        new_image = cv2.copyMakeBorder(
-            new_image,
-            top=0,
-            bottom=0,
-            left=0,
-            right=startX - startX_std,
-            borderType=cv2.BORDER_CONSTANT,
-        )
-    else:
-        new_image = img[:, : startX - startX_std].copy()
-        new_image = cv2.copyMakeBorder(
-            new_image,
-            top=0,
-            bottom=0,
-            left=startX_std - startX,
-            right=0,
-            borderType=cv2.BORDER_CONSTANT,
-        )
-
-    if startY >= startY_std:
-        new_image = new_image[startY - startY_std :, :].copy()
-        new_image = cv2.copyMakeBorder(
-            new_image,
-            top=0,
-            bottom=startY - startY_std,
-            left=0,
-            right=0,
-            borderType=cv2.BORDER_CONSTANT,
-        )
-    else:
-        new_image = new_image[: startY - startY_std, :].copy()
-        new_image = cv2.copyMakeBorder(
-            new_image,
-            top=startY_std - startY,
-            bottom=0,
-            left=0,
-            right=0,
-            borderType=cv2.BORDER_CONSTANT,
-        )
-
-    return new_image
 
 
 def enhance_with_scryfall_api(df: pd.DataFrame) -> pd.DataFrame:
@@ -192,8 +128,9 @@ def enhance_with_scryfall_api(df: pd.DataFrame) -> pd.DataFrame:
 def add_price_usd(df: pd.DataFrame) -> pd.DataFrame:
     """Add current scryfall USD prices"""
     df["price_usd"] = df["scryfall_data"].progress_apply(
-        lambda x: x.get("price", {}).get("usd", np.nan),
+        lambda x: x.get("prices", {}).get("usd", np.nan),
     )
+    df["price_usd"] = pd.to_numeric(df["price_usd"])
     return df
 
 
@@ -209,21 +146,18 @@ def add_img_paths_col(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_image_height_and_width(df: pd.DataFrame) -> pd.DataFrame:
-    """Adds columns img_cv2, height and width"""
-    df["img_cv2"] = df["image_local_path"].progress_apply(lambda x: cv2.imread(x))
-    df["img_cv2"] = df["img_cv2"].fillna(
-        df["image_local_path"].progress_apply(lambda x: cv2.imread(os.path.realpath(x)))
-    )
-    if pd.isnull(df["img_cv2"]).any():
-        problems = df[pd.isnull(df["img_cv2"])]
+    """Adds columns image, height and width"""
+    df["image"] = df["image_local_path"].progress_apply(lambda x: Image.open(x))
+    if pd.isnull(df["image"]).any():
+        problems = df[pd.isnull(df["image"])]
         problems.to_csv('problems.csv')
         raise Exception('There are empty images in the dataframe. See "problems".')
     
-    df["height"] = df["img_cv2"].progress_apply(
-        lambda x: x.shape[0] if x is not None else np.nan
+    df["height"] = df["image"].progress_apply(
+        lambda x: x.size[1]
     )
-    df["width"] = df["img_cv2"].progress_apply(
-        lambda x: x.shape[1] if x is not None else np.nan
+    df["width"] = df["image"].progress_apply(
+        lambda x: x.size[0]
     )
 
     return df
@@ -247,16 +181,14 @@ def should_correct_aspect_ratio(
     )
 
     # shrink height if aspect ration is higher than expected
-    problems = df[pd.isnull(df["height"])]
-    problems2 = df[pd.isnull(df["aspect_ratio_correct_by_proportion"])]
     df["new_height"] = df["height"].where(
         ~df["aspect_ratio_higher"],
-        np.int((df["height"] * df["aspect_ratio_correct_by_proportion"])),
+        (df["height"] * df["aspect_ratio_correct_by_proportion"]).apply(int),
     )
     # shrink width if aspect ration is lower than expected
-    df["new_edith"] = df["width"].where(
+    df["new_width"] = df["width"].where(
         df["aspect_ratio_higher"],
-        np.int((df["width"] * df["aspect_ratio_correct_by_proportion"])),
+        (df["width"] * df["aspect_ratio_correct_by_proportion"]).apply(int),
     )
 
     return df
@@ -264,23 +196,28 @@ def should_correct_aspect_ratio(
 
 def generate_deck_img_dir(df: pd.DataFrame, deck_slug: str) -> pd.DataFrame:
     """Generates images in deck image dirs, risezed if needed"""
+    logger.info('generate_deck_img_dir')
     Path(f"./deck_images/{deck_slug}").mkdir(parents=True, exist_ok=True)
-    df["deck_image_path"] = df.apply(
-        lambda row: f"./deck_images/{deck_slug}/{row.card_id_in_deck}-{row.card_name}-{'resized' if row.should_resize else ''}",
+    df["deck_image_path"] = df.progress_apply(
+        lambda row: f"./deck_images/{deck_slug}/{row.card_id_in_deck}-{row.card_name}-{'resized' if row.should_resize else ''}.png",
         axis="columns",
     )
 
-    df["img_to_save"] = df.apply(
-        lambda row: row.img_cv2
-        if row.should_resize
-        else cv2.resize(
-            row.img_cv2, (row.new_height, row.new_width), interpolation=cv2.INTER_AREA
+    logger.info('Start resizing images')
+    df["deck_image"] = df.progress_apply(
+        lambda row: row.image
+        if not row.should_resize
+        else row.image.resize(
+            (row.new_width, row.new_height)
         ),
         axis="columns",
     )
 
-    df.apply(
-        lambda row: cv2.imwrite(row.deck_image_path, row.img_to_save),
+    logger.info('Saving resized images')
+    df.progress_apply(
+        lambda row: row.deck_image.save(row.deck_image_path)
+        if not os.path.isfile(row.deck_image_path)
+        else np.nan,
         axis="columns",
     )
 
@@ -302,7 +239,7 @@ if __name__ == "__main__":
     deck_df = pd.read_sql_query(deck_df_query, engine)
 
     logger.info(f"Downloading images for deck {DECK_SLUG}")
-    deck_df["image_local_path"] = deck_df.apply(
+    deck_df["image_local_path"] = deck_df.progress_apply(
         lambda row: download_card_image(row.scryfallId, card_name=row.card_name),
         axis="columns",
     )
@@ -316,6 +253,9 @@ if __name__ == "__main__":
         .pipe(generate_deck_img_dir, deck_slug=DECK_SLUG)
         # .pipe(position_imgs_in_A4)
     )
+
+    logger.debug(deck_df.price_usd)
+    logger.info(f"Deck estimated price: {deck_df.price_usd.sum()} USD")
 
     a = 1
 
