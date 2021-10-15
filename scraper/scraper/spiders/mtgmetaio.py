@@ -5,42 +5,29 @@ from scrapy.linkextractors import (
     LinkExtractor,
 )  # https://docs.scrapy.org/en/latest/topics/link-extractors.html#topics-link-extractors
 from scrapy import Selector
-from itemadapter import ItemAdapter
-
-# TODO add items and
-# Then, add middleware to split item in multiple items (https://docs.scrapy.org/en/latest/faq.html#how-to-split-an-item-into-multiple-items-in-an-item-pipeline)
-class SplitDeckItemsMiddleware:
-    def process_spider_output(self, response, result, spider):
-        for deck_item in result:
-            yield deck_item
-            # deck_adapter = ItemAdapter(deck_item)
-            # yield deck_adapter
-            #         adapter = ItemAdapter(item)
-            #         for _ in range(adapter["multiply_by"]):
 
 
 class MtgMetaIoSpider(CrawlSpider):
     name = "mtgmetaio"
     pat_of_deck_urls = r"https://mtgmeta.io/decks/\d+"
     custom_settings = {
-        "SPIDER_MIDDLEWARES": {
-            "scraper.spiders.mtgmetaio.SplitDeckItemsMiddleware": 543,
-        },
         "DEPTH_LIMIT": 1,  # 0 means no limit
         "ITEM_PIPELINES": {
-            # 'mybot.pipelines.validate.ValidateMyItem': 300,
-            # 'mybot.pipelines.validate.StoreMyItem': 800,
+            "scraper.pipelines.StoreRaw": 200,
+            # "scraper.pipelines.ValidateRawSchema": 300,
+            # 'scraper.pipelines.ParseToCorrectTypes': 400,
+            # 'scraper.pipelines.ConvertToDataClassAndStore': 800,
         },
     }
     start_urls = [
-        "https://mtgmeta.io",
-        "https://mtgmeta.io/decks",
-        "https://mtgmeta.io/decks?f=standard",
-        "https://mtgmeta.io/decks?f=pioneer",
-        "https://mtgmeta.io/decks?f=modern",
-        "https://mtgmeta.io/decks?f=legacy",
-        "https://mtgmeta.io/decks?f=pauper",
-        "https://mtgmeta.io/decks?f=historic",
+        # "https://mtgmeta.io",
+        # "https://mtgmeta.io/decks",
+        # "https://mtgmeta.io/decks?f=standard",
+        # "https://mtgmeta.io/decks?f=pioneer",
+        # "https://mtgmeta.io/decks?f=modern",
+        # "https://mtgmeta.io/decks?f=legacy",
+        # "https://mtgmeta.io/decks?f=pauper",
+        # "https://mtgmeta.io/decks?f=historic",
         "https://mtgmeta.io/decks/23910",
     ]
     rules = [
@@ -106,7 +93,7 @@ class MtgMetaIoSpider(CrawlSpider):
         deckvs = response.selector.xpath(
             '//ul[contains(@class, "deckvs")]/li[@data-perf]'
         )
-        vs_results = []
+        vs_stats = []
         for d in deckvs:
             d_selector = Selector(text=d.get())
             attrib_dict = d.attrib
@@ -116,8 +103,8 @@ class MtgMetaIoSpider(CrawlSpider):
             attrib_dict["vs_deck_url"] = d_selector.xpath(
                 '//a[has-class("btn")]/@href'
             ).get()
-            vs_results.append(attrib_dict)
-        # sample vs_results
+            vs_stats.append(attrib_dict)
+        # sample vs_stats
         # [{'data-pos': '70',  # no idea o meaning
         # 'data-perf': '33.3',  # percentage of times this deck won against vs_deck_url
         # 'data-name': 'temur epiphany',  # vs_deck_url name
@@ -125,7 +112,7 @@ class MtgMetaIoSpider(CrawlSpider):
         # 'matches': '(3)',  # number of maches they played against each other
         # 'vs_deck_url': 'https://mtgmeta.io/decks/23897',
         # }]
-        result_to_export["vs_results"] = vs_results
+        result_to_export["vs_stats"] = vs_stats
 
         # self.log(f'Result: {result_to_export}')
 
