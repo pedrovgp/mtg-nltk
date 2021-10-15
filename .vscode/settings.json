@@ -1,11 +1,18 @@
 {
-    "python.pythonPath": "/Users/pedro.viana/miniconda3/envs/mtg/bin/python3.8",
+    // "python.pythonPath": "/Users/pedro.viana/miniconda3/envs/mtg/bin/python3.8",
+    "python.pythonPath": "/home/pv/miniconda3/envs/mtg/bin/python",
+    "python.defaultInterpreterPath": "/home/pv/miniconda3/envs/mtg/bin/ipython",
     "python.formatting.provider": "black",
+    "python.formatting.blackPath": "/home/pv/miniconda3/envs/mtg/bin/black",
     "editor.formatOnSave": true,
+    "python.linting.lintOnSave": true,
     "logViewer.watch": [
         {
             "title": "All logs",
             "pattern": "./logs/*.log"
         }
-    ]
+    ],
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    // "python.envFile": "${workspaceFolder}/.env"  # this is default
 }

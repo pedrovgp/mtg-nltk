@@ -1,2 +1,7 @@
-# DB_STR = "postgresql://pedrovgp_demo_db_connection:8SRH_EXfdF9DyNLVi3Ki2nut8dsk@db.bit.io"
-DB_STR = "postgresql+psycopg2://mtg:mtg@localhost:5432/mtg"
+# https://github.com/microsoft/vscode-python/issues/944#issuecomment-773293816
+# Create .env file in the root dir of this project
+# Append the below to venv/bin/activate and your .env variables will be loaded on activation (opening a new terminal)
+# export $(grep -v '^#' .env | xargs)
+import os
+
+DB_STR = os.getenv("DB_STR")
