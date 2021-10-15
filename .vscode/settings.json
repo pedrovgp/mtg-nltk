@@ -1,5 +1,11 @@
 {
     "python.pythonPath": "/Users/pedro.viana/miniconda3/envs/mtg/bin/python3.8",
     "python.formatting.provider": "black",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "logViewer.watch": [
+        {
+            "title": "All logs",
+            "pattern": "./logs/*.log"
+        }
+    ]
 }

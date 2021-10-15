@@ -6,12 +6,16 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import os
 
 BOT_NAME = 'scraper'
 
 SPIDER_MODULES = ['scraper.spiders']
 NEWSPIDER_MODULE = 'scraper.spiders'
 
+SETTINGS_DIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+LOG_DIR = os.path.join(SETTINGS_DIR, 'logs')
+LOG_FILE = os.path.join(LOG_DIR, 'scraper.log')
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'scraper (+http://www.yourdomain.com)'
