@@ -5,14 +5,28 @@ from scrapy.linkextractors import (
     LinkExtractor,
 )  # https://docs.scrapy.org/en/latest/topics/link-extractors.html#topics-link-extractors
 from scrapy import Selector
-import logging
+from itemadapter import ItemAdapter
+
+# TODO add items and
+# Then, add middleware to split item in multiple items (https://docs.scrapy.org/en/latest/faq.html#how-to-split-an-item-into-multiple-items-in-an-item-pipeline)
+class SplitDeckItemsMiddleware:
+    def process_spider_output(self, response, result, spider):
+        for deck_item in result:
+            yield deck_item
+            # deck_adapter = ItemAdapter(deck_item)
+            # yield deck_adapter
+            #         adapter = ItemAdapter(item)
+            #         for _ in range(adapter["multiply_by"]):
 
 
 class MtgMetaIoSpider(CrawlSpider):
     name = "mtgmetaio"
     pat_of_deck_urls = r"https://mtgmeta.io/decks/\d+"
     custom_settings = {
-        "DEPTH_LIMIT": 0,  # 0 means no limit
+        "SPIDER_MIDDLEWARES": {
+            "scraper.spiders.mtgmetaio.SplitDeckItemsMiddleware": 543,
+        },
+        "DEPTH_LIMIT": 1,  # 0 means no limit
         "ITEM_PIPELINES": {
             # 'mybot.pipelines.validate.ValidateMyItem': 300,
             # 'mybot.pipelines.validate.StoreMyItem': 800,
@@ -52,7 +66,7 @@ class MtgMetaIoSpider(CrawlSpider):
         result_to_export["deckname"] = response.selector.xpath(
             '//h1[contains(@class, "deckname")]/text()'
         ).get()
-        result_to_export["deck_id"] = response.url
+        result_to_export["deck_url"] = response.url
 
         # Global stats showing below the deck name, right on top of the page
         deck_global_stats = response.selector.xpath('//ul[@id="deckstats"]/li/text()')
@@ -99,17 +113,17 @@ class MtgMetaIoSpider(CrawlSpider):
             attrib_dict["matches"] = d_selector.xpath(
                 '//span[contains(@class, "matches")]/text()'
             ).get()
-            attrib_dict["vs_deck_id"] = d_selector.xpath(
+            attrib_dict["vs_deck_url"] = d_selector.xpath(
                 '//a[has-class("btn")]/@href'
             ).get()
             vs_results.append(attrib_dict)
         # sample vs_results
         # [{'data-pos': '70',  # no idea o meaning
-        # 'data-perf': '33.3',  # percentage of times this deck won against vs_deck_id
-        # 'data-name': 'temur epiphany',  # vs_deck_id name
+        # 'data-perf': '33.3',  # percentage of times this deck won against vs_deck_url
+        # 'data-name': 'temur epiphany',  # vs_deck_url name
         # 'class': 'hidden',  # useless
         # 'matches': '(3)',  # number of maches they played against each other
-        # 'vs_deck_id': 'https://mtgmeta.io/decks/23897',
+        # 'vs_deck_url': 'https://mtgmeta.io/decks/23897',
         # }]
         result_to_export["vs_results"] = vs_results
 
