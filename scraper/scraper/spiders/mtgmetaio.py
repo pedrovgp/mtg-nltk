@@ -11,23 +11,23 @@ class MtgMetaIoSpider(CrawlSpider):
     name = "mtgmetaio"
     pat_of_deck_urls = r"https://mtgmeta.io/decks/\d+"
     custom_settings = {
-        "DEPTH_LIMIT": 1,  # 0 means no limit
+        "DEPTH_LIMIT": 0,  # 0 means no limit
         "ITEM_PIPELINES": {
             "scraper.pipelines.StoreRaw": 200,
             # "scraper.pipelines.ValidateRawSchema": 300,
-            # 'scraper.pipelines.ParseToCorrectTypes': 400,
-            # 'scraper.pipelines.ConvertToDataClassAndStore': 800,
+            "scraper.pipelines.ParseToCorrectTypes": 400,
+            "scraper.pipelines.ConvertToDataClassAndStore": 800,
         },
     }
     start_urls = [
-        # "https://mtgmeta.io",
-        # "https://mtgmeta.io/decks",
-        # "https://mtgmeta.io/decks?f=standard",
-        # "https://mtgmeta.io/decks?f=pioneer",
-        # "https://mtgmeta.io/decks?f=modern",
-        # "https://mtgmeta.io/decks?f=legacy",
-        # "https://mtgmeta.io/decks?f=pauper",
-        # "https://mtgmeta.io/decks?f=historic",
+        "https://mtgmeta.io",
+        "https://mtgmeta.io/decks",
+        "https://mtgmeta.io/decks?f=standard",
+        "https://mtgmeta.io/decks?f=pioneer",
+        "https://mtgmeta.io/decks?f=modern",
+        "https://mtgmeta.io/decks?f=legacy",
+        "https://mtgmeta.io/decks?f=pauper",
+        "https://mtgmeta.io/decks?f=historic",
         "https://mtgmeta.io/decks/23910",
     ]
     rules = [
@@ -95,6 +95,7 @@ class MtgMetaIoSpider(CrawlSpider):
         )
         vs_stats = []
         for d in deckvs:
+            # get the html only of this deck vs list item
             d_selector = Selector(text=d.get())
             attrib_dict = d.attrib
             attrib_dict["matches"] = d_selector.xpath(

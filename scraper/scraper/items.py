@@ -145,9 +145,7 @@ class Deck:
     __tablename__ = DECK_TNAME
     __sa_dataclass_metadata_key__ = "sa"
 
-    deck_url: str = field(
-        default=None, metadata={"sa": Column(String, primary_key=True)}
-    )
+    deck_url: str = field(metadata={"sa": Column(String, primary_key=True)})
     deckname: str = field(default=None, metadata={"sa": Column(String(200))})
     format: str = field(default=None, metadata={"sa": Column(String(50))})
     metashare: float = field(default=None, metadata={"sa": Column(Float(5))})
@@ -155,13 +153,13 @@ class Deck:
     era_begin: datetime = field(default=None, metadata={"sa": Column(DateTime())})
     era_end: datetime = field(default=None, metadata={"sa": Column(DateTime())})
     price: float = field(default=None, metadata={"sa": Column(Float(10))})
-    cards_in_deck: List[CardsInDeck] = field(
-        default_factory=list, metadata={"sa": relationship("CardsInDeck")}
-    )
-    vs_stats: List[VStats] = field(
-        default_factory=list,
-        metadata={"sa": relationship("VStats", foreign_keys="VStats.deck_url")},
-    )
+    # cards_in_deck: List[CardsInDeck] = field(
+    #     default_factory=list, metadata={"sa": relationship("CardsInDeck")}
+    # )
+    # vs_stats: List[VStats] = field(
+    #     default_factory=list,
+    #     metadata={"sa": relationship("VStats", foreign_keys="VStats.deck_url")},
+    # )
 
 
 @mapper_registry.mapped
