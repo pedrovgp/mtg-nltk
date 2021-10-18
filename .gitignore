@@ -14,3 +14,10 @@ cards_links_list.pkl
 *.png
 *.jpg
 *.jpeg
+*.html
+*.json
+*.log
+*.sqlite
+*.scrapy/
+*.env
+scraper/scraper/logs
