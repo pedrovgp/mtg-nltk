@@ -1,5 +1,8 @@
 from prefect import Task, Flow
 import logging
+import os
+
+from flows.mtgmetaio import flow_scrapy_crawl, get_flow_landing_to_decks
 
 logger = logging.getLogger()
 
@@ -14,8 +17,10 @@ logger = logging.getLogger()
 # )
 # my_flow.run()
 
+
 def execfile(fn):
     exec(open(fn).read(), globals(), globals())
+
 
 #######################
 
@@ -146,6 +151,9 @@ drawGraph = TBD()
 # )
 
 deck_slug = None
+run_full_flow = False
+run_scrapy_crawl = False
+run_mtgmetaio_landind_to_deks = False
 if __name__ == "__main__":
 
     if deck_slug:
@@ -153,9 +161,20 @@ if __name__ == "__main__":
         flow_state = flow_deck_graph.run()
         flow_full_data_pipeline.visualize(flow_state=flow_state)
 
-    else:
+    if run_full_flow:
         flow_full_data_pipeline.visualize()
         flow_state = flow_full_data_pipeline.run()
         flow_full_data_pipeline.visualize(flow_state=flow_state)
+
+    if run_scrapy_crawl:
+        flow_scrapy_crawl.visualize()
+        flow_state = flow_scrapy_crawl.run()
+        flow_scrapy_crawl.visualize(flow_state=flow_state)
+
+    if run_mtgmetaio_landind_to_deks:
+        flow_landing_to_decks = get_flow_landing_to_decks(for_urls=[])
+        flow_landing_to_decks.visualize()
+        flow_state = flow_landing_to_decks.run()
+        flow_landing_to_decks.visualize(flow_state=flow_state)
 
     pass
