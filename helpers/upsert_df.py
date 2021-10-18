@@ -62,7 +62,7 @@ def upsert_df(df: pd.DataFrame, table_name: str, engine: sqlalchemy.engine.Engin
     SET {update_column_stmt};
     """
     engine.execute(query_upsert)
-    engine.execute(f"DROP TABLE {temp_table_name}")
+    engine.execute(f'DROP TABLE "{temp_table_name}"')
 
     return True
 

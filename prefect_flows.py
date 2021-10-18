@@ -152,7 +152,7 @@ drawGraph = TBD()
 
 deck_slug = None
 run_full_flow = False
-run_scrapy_crawl = False
+run_scrapy_crawl = True
 run_mtgmetaio_landind_to_deks = False
 if __name__ == "__main__":
 

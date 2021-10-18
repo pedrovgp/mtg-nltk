@@ -1,4 +1,4 @@
-from ..helpers.upsert_df import upsert_df
+from helpers.upsert_df import upsert_df
 import logging
 import os
 from typing import List, Set
@@ -6,6 +6,7 @@ from typing import List, Set
 import pandas as pd
 from sqlalchemy import create_engine, engine
 
+import prefect
 from prefect import Flow, Parameter, Task, task
 
 from prefect.tasks.control_flow.filter import FilterTask
@@ -34,7 +35,7 @@ class ScrapyCrawlMtgmetaio(Task):
 
         os.chdir("./scraper")
         os.system(
-            f"scrapy crawl mtgmetaio -O mtgmetaio-{datetime.utcnow():%Y-%m-%d-%H:%M}.json"
+            f'scrapy crawl mtgmetaio -O "mtgmetaio-{datetime.utcnow():%Y-%m-%d-%H-%M}.json"'
         )
 
 
@@ -66,13 +67,43 @@ def get_list_or_all_deck_urls(
 
 @task
 def check_if_all_cards_exist(
-    deck_url: str, error_table: str = f"{MTGMETA_CARDS_TNAME}_errors", engine=engine
+    deck_url: str,
+    error_table: str = f"{MTGMETA_CARDS_TNAME}_errors",
+    engine=engine,
+    mtgmeta_cards_tname: str = MTGMETA_CARDS_TNAME,
 ) -> str:
     """Returns the same input string or (find out what to map
     to failed state)
 
     Non mappable card slugs are saved to an error table
     """
+    logger = prefect.context.get("mtgmetaio_check_if_all_cards_exist")
+
+    query_mtgmeta_cards_ljoin_canonical_cards = f"""
+    WITH filtered as (
+        SELECT * FROM "{mtgmeta_cards_tname}"
+        WHERE "deck_url" = '{deck_url}'
+    )
+    , result as (
+        SELECT "deck_url", "card_slug", "name_slug" as "canonical_skryfall_name_slug"
+        FROM filtered
+        LEFT JOIN "cards"
+        ON "card_slug"="name_slug"
+    )
+        SELECT *
+        FROM result
+        WHERE "canonical_skryfall_name_slug" is null
+    """
+
+    errors_df = pd.read_sql_query(query_mtgmeta_cards_ljoin_canonical_cards, engine)
+    if not errors_df.empty:
+        logger.info(
+            f"Deck {deck_url} contains cards which are not in cards database. "
+            f"They were saved in {error_table}. This deck will not be added to decks table."
+        )
+        upsert_df(errors_df, error_table, engine)
+        return None
+
     return deck_url
 
 
@@ -83,10 +114,58 @@ filter_results = FilterTask(
 
 
 @task
-def transf_landing_to_decks(deck_url: str, engine=engine) -> pd.DataFrame:
+def transf_landing_to_decks(
+    deck_url: str,
+    engine=engine,
+    mtgmeta_cards_tname: str = MTGMETA_CARDS_TNAME,
+    mtgmeta_decks_tname: str = MTGMETA_DECK_TNAME,
+    decks_tname: str = DECKS_TNAME,
+) -> pd.DataFrame:
     """Loads deck and cards_in_deck from mtgmeta.io tables and transform
     them into one dataframe suitable for decks table
     """
+    logger = prefect.context.get("mtgmetaio_transf_landing_to_decks")
+
+    query_mtgmeta_decks_join_canonical_cards = f"""
+        WITH filtered_cards as (
+            SELECT * FROM "{mtgmeta_cards_tname}"
+            WHERE "deck_url" = '{deck_url}'
+        )
+        , filtered_decks as (
+            SELECT "deck_url", "deckname" as "deck_name"
+            FROM "{mtgmeta_decks_tname}"
+            WHERE "deck_url" = '{deck_url}'
+        )
+        , joint_mtgmeta as (
+            SELECT *
+            FROM filtered_decks
+            NATURAL JOIN filtered_cards
+        )
+        SELECT "deck_url" as "deck_id", "main", "quantity", "card_slug",
+            "cards"."name" as "card_name", "deck_name"
+        FROM joint_mtgmeta
+        LEFT JOIN "cards"
+        ON joint_mtgmeta."card_slug"="cards"."name_slug"
+    """
+
+    transformed_df = pd.read_sql_query(query_mtgmeta_decks_join_canonical_cards, engine)
+    transformed_df["deck_name"] = transformed_df["deck_name"].fillna(
+        transformed_df["deck_id"]
+    )
+    transformed_df["in"] = transformed_df["main"].apply(
+        lambda x: "MAIN" if x else "SIDEBOARD"
+    )
+    transformed_df["for_explosion"] = transformed_df["quantity"].apply(
+        lambda x: list(range(x))
+    )
+    transformed_df = transformed_df.explode("for_explosion", ignore_index=True)
+    transformed_df = transformed_df.sort_values(by=["in", "card_name"]).reset_index()
+    transformed_df["card_id_in_deck"] = transformed_df.index
+    transformed_df = transformed_df[
+        ["card_id_in_deck", "deck_id", "card_name", "in", "deck_name"]
+    ]
+    transformed_df = transformed_df.set_index(["card_id_in_deck", "deck_id"])
+
     return transformed_df
 
 
