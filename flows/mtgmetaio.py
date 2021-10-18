@@ -1,7 +1,7 @@
 from helpers.upsert_df import upsert_df
 import logging
 import os
-from typing import List, Set
+from typing import List
 
 import pandas as pd
 from sqlalchemy import create_engine, engine
@@ -45,7 +45,7 @@ flow_scrapy_crawl = Flow("Scrapy-crawl-flow", tasks=[ScrapyCrawlMtgmetaio()])
 
 def get_list_or_all_deck_urls(
     urls: List = [], tname: str = MTGMETA_DECK_TNAME, engine=engine
-) -> Set:
+) -> List:
     # Get a list of URLs or all of them
     urls_query_txt = ", ".join([f"'{x}'" for x in urls])
     if urls:
@@ -58,11 +58,12 @@ def get_list_or_all_deck_urls(
     else:
         result = pd.read_sql_query(
             f"""SELECT DISTINCT "deck_url"
-        FROM "{tname}""",
+                FROM "{tname}"
+            """,
             engine,
         )
 
-    return set(result["deck_url"])
+    return list(result["deck_url"])
 
 
 @task
@@ -164,7 +165,7 @@ def transf_landing_to_decks(
     transformed_df = transformed_df[
         ["card_id_in_deck", "deck_id", "card_name", "in", "deck_name"]
     ]
-    transformed_df = transformed_df.set_index(["card_id_in_deck", "deck_id"])
+    transformed_df = transformed_df.set_index(["card_id_in_deck", "deck_id", "in"])
 
     return transformed_df
 
@@ -196,14 +197,25 @@ def get_flow_landing_to_decks(for_urls: List = []) -> Flow:
     """
     with Flow("landing-to-decks") as flow_landing_to_decks:
 
+        test_urls = [
+            "https://mtgmeta.io/decks/20311?rid=275510",  # all cards in cards
+        ]
         # Fetch specific list of urls or all
         deck_urls = get_list_or_all_deck_urls(urls=[])
+        # deck_urls = get_list_or_all_deck_urls(urls=test_urls)
 
         cards_checked = check_if_all_cards_exist.map(
             deck_urls
         )  # should output the same list of urls, if not failed
         unproblematic_decks = filter_results(cards_checked)
         transformed_df = transf_landing_to_decks.map(unproblematic_decks)
-        upserted_into_decks = upsert_into_decks(df=transformed_df)
+        upserted_into_decks = upsert_into_decks.map(df=transformed_df)
 
     return flow_landing_to_decks
+
+
+if __name__ == "__main__":
+    flow = get_flow_landing_to_decks()
+    flow.visualize()
+    flow_state = flow.run()
+    flow.visualize(flow_state=flow_state)
