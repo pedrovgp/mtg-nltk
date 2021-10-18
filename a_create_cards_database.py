@@ -76,7 +76,8 @@ tqdm.pandas(desc="Progress")
 # %% Download AllPrintings.json if it does not exist
 # https://mtgjson.com/api/v5/AllPrintings.json
 logger.info("Download AllPrintings.json if it does not exist")
-allprintings_fname = "./AllPrintings20210615.json"
+# allprintings_fname = "./AllPrintings20210615.json"
+allprintings_fname = "./AllPrintings20211017.json"
 if not os.path.isfile(allprintings_fname):
     raise Exception(
         f"Sorry, did not find AllPrintings20210615.json in the projects root folder. "
