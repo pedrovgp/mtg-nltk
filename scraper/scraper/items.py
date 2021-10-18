@@ -102,17 +102,16 @@ RAW_DECK_JSON_SCHEMA = {
 class CardsInDeck:
     __tablename__ = CARDS_IN_DECK_TNAME
     __sa_dataclass_metadata_key__ = "sa"
-    id: int = field(init=False, metadata={"sa": Column(Integer, primary_key=True)})
+    card_name: str = field(metadata={"sa": Column(String(100), primary_key=True)})
     deck_url: str = field(
         default=None,
-        metadata={"sa": Column(ForeignKey(f"{DECK_TNAME}.deck_url"), nullable=False)},
+        metadata={"sa": Column(ForeignKey(f"{DECK_TNAME}.deck_url"), primary_key=True)},
     )
-    main: bool = field(default=True, metadata={"sa": Column(Boolean(), nullable=False)})
+    main: bool = field(
+        default=True, metadata={"sa": Column(Boolean(), primary_key=True)}
+    )
     quantity: int = field(
         default=None, metadata={"sa": Column(Integer, nullable=False)}
-    )
-    card_name: str = field(
-        default=None, metadata={"sa": Column(String(100), nullable=False)}
     )
     card_slug: str = field(
         default=None, metadata={"sa": Column(String(100), nullable=False)}
@@ -124,14 +123,13 @@ class CardsInDeck:
 class VStats:
     __tablename__ = VSTATS_TNAME
     __sa_dataclass_metadata_key__ = "sa"
-    id: int = field(init=False, metadata={"sa": Column(Integer, primary_key=True)})
     deck_url: str = field(
         default=None,
-        metadata={"sa": Column(ForeignKey(f"{DECK_TNAME}.deck_url"), nullable=False)},
+        metadata={"sa": Column(ForeignKey(f"{DECK_TNAME}.deck_url"), primary_key=True)},
     )
     vs_deck_url: str = field(
         default=None,
-        metadata={"sa": Column(ForeignKey(f"{DECK_TNAME}.deck_url"), nullable=False)},
+        metadata={"sa": Column(ForeignKey(f"{DECK_TNAME}.deck_url"), primary_key=True)},
     )
     matches: int = field(default=None, metadata={"sa": Column(Integer, nullable=False)})
     performance: float = field(
@@ -174,5 +172,5 @@ class RawItem:
 
 if __name__ == "__main__":
     # mapper_registry.metadata.create_all(engine)
-    # mapper_registry.metadata.drop_all(engine)
+    mapper_registry.metadata.drop_all(engine)
     pass

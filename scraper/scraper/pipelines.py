@@ -16,6 +16,7 @@ from itemadapter import ItemAdapter
 from jsonschema import validate
 from scrapy.exceptions import DropItem
 from slugify.slugify import slugify
+import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dataclasses import fields
@@ -174,6 +175,12 @@ class ConvertToDataClassAndStore:
         def commit(session=session):
             try:
                 session.commit()
+
+            except sqlalchemy.exc.IntegrityError as e:
+                logger.warning("Commiting data failed because of IntegrityError")
+                logger.warning(e)
+                session.rollback()
+                logger.warning("Rolling back and keep going")
 
             except Exception as e:
                 logger.error("Commiting data failed")
