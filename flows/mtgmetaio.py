@@ -102,6 +102,7 @@ def check_if_all_cards_exist(
             f"Deck {deck_url} contains cards which are not in cards database. "
             f"They were saved in {error_table}. This deck will not be added to decks table."
         )
+        errors_df = errors_df.set_index(["deck_url", "card_slug"])
         upsert_df(errors_df, error_table, engine)
         return None
 

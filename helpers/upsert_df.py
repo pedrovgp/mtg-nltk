@@ -6,6 +6,10 @@ import sqlalchemy
 import uuid
 import os
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def upsert_df(df: pd.DataFrame, table_name: str, engine: sqlalchemy.engine.Engine):
     """Implements the equivalent of pd.DataFrame.to_sql(..., if_exists='update')
@@ -56,6 +60,7 @@ def upsert_df(df: pd.DataFrame, table_name: str, engine: sqlalchemy.engine.Engin
     except Exception as e:
         # relation "unique_constraint_for_upsert" already exists
         if not 'unique_constraint_for_upsert" already exists' in e.args[0]:
+            engine.execute(f'DROP TABLE "{temp_table_name}"')
             raise e
 
     # Compose and execute upsert query
@@ -65,7 +70,13 @@ def upsert_df(df: pd.DataFrame, table_name: str, engine: sqlalchemy.engine.Engin
     ON CONFLICT ({index_sql_txt}) DO UPDATE 
     SET {update_column_stmt};
     """
-    engine.execute(query_upsert)
+    try:
+        engine.execute(query_upsert)
+    except Exception as e:
+        logger.error(e)
+        engine.execute(f'DROP TABLE "{temp_table_name}"')
+        raise e
+
     engine.execute(f'DROP TABLE "{temp_table_name}"')
 
     return True
