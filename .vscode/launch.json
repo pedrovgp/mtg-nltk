@@ -5,6 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: flows.mtgmetaio",
+            "type": "python",
+            "request": "launch",
+            "module": "flows.mtgmetaio",
+            "python.terminal.launchArgs": [
+                "-m",
+                "IPython",
+                "--no-autoindent",
+            ]
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
@@ -15,6 +26,6 @@
                 "IPython",
                 "--no-autoindent",
             ]
-        }
+        },
     ]
 }
