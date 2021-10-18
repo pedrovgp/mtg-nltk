@@ -172,5 +172,5 @@ class RawItem:
 
 if __name__ == "__main__":
     # mapper_registry.metadata.create_all(engine)
-    mapper_registry.metadata.drop_all(engine)
+    # mapper_registry.metadata.drop_all(engine)
     pass
