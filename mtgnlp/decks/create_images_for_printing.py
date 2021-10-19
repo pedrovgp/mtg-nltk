@@ -22,7 +22,7 @@ import requests_cache
 import json
 import logging
 
-logPathFileName = "../logs/" + "decks_create_images_for_printing.log"
+logPathFileName = config.LOGS_DIR.joinpath("decks_create_images_for_printing.log")
 
 # create logger'
 logger = logging.getLogger("decks_create_images_for_printing")
@@ -97,8 +97,8 @@ def download_card_image(scryfall_id, card_name: str) -> str:
     Returns:
         str: path to card relative to this scripts location
     """
-    Path("./card_images").mkdir(parents=True, exist_ok=True)
-    path = f"./card_images/{card_name}.png"
+    config.DECKS_DIR.joinpath("card_images").mkdir(parents=True, exist_ok=True)
+    path = config.DECKS_DIR.joinpath(f"card_images/{card_name}.png")
     filename = os.path.realpath(path)
 
     # Download the file if it does not exist
@@ -227,9 +227,9 @@ if __name__ == "__main__":
 
     deck_df_query = f"""
     SELECT deck_id, card_id_in_deck, card_name, cards."scryfallId"
-    FROM decks
-    JOIN cards
-    ON decks.card_name=cards.name
+    FROM "{config.DECKS_TNAME}"
+    JOIN "{config.CARDS_TNAME}"
+    ON "{config.DECKS_TNAME}".card_name="{config.CARDS_TNAME}".name
     WHERE deck_id='{DECK_SLUG}'
     """
     deck_df = pd.read_sql_query(deck_df_query, engine)

@@ -22,5 +22,5 @@ CARDS_TEXT_TO_ENTITY_SIMPLE_PATHS_TNAME = "cards_text_to_entity_simple_paths"
 DECKS_TNAME = "decks"
 DECKS_GRAPH_TNAME = "decks_graphs"
 DECKS_FEATURES_TNAME = "deck_features"
-DECKS_DIR = ROOT_DIR.joinpath("mtgnlp/decks/")
+DECKS_DIR = DATA_DIR.joinpath("decks/")
 ALL_PRINTINGS_PATH = DATA_DIR.joinpath("AllPrintings20211017.json")
