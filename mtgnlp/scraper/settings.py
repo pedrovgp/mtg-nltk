@@ -6,11 +6,12 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+from mtgnlp import config
 import os
 from sqlalchemy import create_engine
 import os
 
-DB_STR = os.getenv("DB_STR")
+DB_STR = config.DB_STR
 # Creating ENGINE here fails, because scrapy tries to pickle it, failing to do it
 # ENGINE = create_engine(DB_STR, echo=True, future=True)
 

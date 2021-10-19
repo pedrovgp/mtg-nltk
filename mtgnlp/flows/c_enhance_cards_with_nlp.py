@@ -35,7 +35,7 @@
 # outgoing_edges_df = edges from the nodes above
 # incoming_nodes_df = nodes for cards and attribute entities
 # incoming_edges_df = edges from the nodes above
-import config
+from mtgnlp import config
 
 import datetime
 import hashlib

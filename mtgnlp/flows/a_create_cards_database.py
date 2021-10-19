@@ -38,7 +38,7 @@ import inspect
 import linecache
 import os
 
-import config
+from mtgnlp import config
 
 try:
     __file__

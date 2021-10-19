@@ -1,3 +1,4 @@
+from mtgnlp import config
 from helpers.upsert_df import upsert_df
 import logging
 import os
@@ -15,7 +16,7 @@ from prefect.engine.signals import SKIP
 
 logger = logging.getLogger()
 
-engine = create_engine(os.getenv("DB_STR"))
+engine = create_engine(config.DB_STR)
 MTGMETA_DECK_TNAME = "mtgmetaio_decks"
 MTGMETA_CARDS_TNAME = "mtgmetaio_cards_in_deck"
 DECKS_TNAME = "decks"

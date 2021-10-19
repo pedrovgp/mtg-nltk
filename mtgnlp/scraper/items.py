@@ -3,9 +3,9 @@
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/items.html
 
+from mtgnlp import config
 from dataclasses import dataclass, field
 from datetime import datetime
-from os import getenv
 from typing import Dict, List
 
 from scrapy import Item
@@ -24,7 +24,7 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import registry, relationship
 
 mapper_registry = registry()
-engine = create_engine(getenv("DB_STR"))
+engine = create_engine(config.DB_STR)
 
 # define all the items I need as DataClass items
 # decks table (deck_url/url, name, format, metashare, global_performance, era, price)

@@ -1,3 +1,4 @@
+from mtgnlp import config
 from helpers.upsert_df import upsert_df
 import logging
 import os
@@ -16,7 +17,7 @@ from mtgnlp.helpers.flows_commons import get_list_or_all_deck_ids
 
 logger = logging.getLogger()
 
-engine = create_engine(os.getenv("DB_STR"))
+engine = create_engine(config.DB_STR)
 MTGMETA_DECK_TNAME = os.getenv("MTGMETA_DECK_TNAME")
 MTGMETA_CARDS_TNAME = os.getenv("MTGMETA_CARDS_TNAME")
 DECKS_TNAME = os.getenv("DECKS_TNAME")

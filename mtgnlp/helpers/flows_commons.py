@@ -3,6 +3,7 @@ import logging
 import os
 from typing import List
 
+from mtgnlp import config
 import pandas as pd
 from sqlalchemy import create_engine, engine
 
@@ -15,7 +16,7 @@ from prefect.engine.signals import SKIP
 
 logger = logging.getLogger()
 
-engine = create_engine(os.getenv("DB_STR"))
+engine = create_engine(config.DB_STR)
 MTGMETA_DECK_TNAME = os.getenv("MTGMETA_DECK_TNAME")
 MTGMETA_CARDS_TNAME = os.getenv("MTGMETA_CARDS_TNAME")
 CARDS_TNAME = os.getenv("CARDS_TNAME")

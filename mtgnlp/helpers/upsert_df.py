@@ -1,6 +1,7 @@
 # Upsert function for pandas to_sql with postgres
 # https://stackoverflow.com/questions/1109061/insert-on-duplicate-update-in-postgresql/8702291#8702291
 # https://www.postgresql.org/docs/devel/sql-insert.html#SQL-ON-CONFLICT
+from mtgnlp import config
 import pandas as pd
 import sqlalchemy
 import uuid
@@ -84,7 +85,7 @@ def upsert_df(df: pd.DataFrame, table_name: str, engine: sqlalchemy.engine.Engin
 
 if __name__ == "__main__":
     # TESTS (create environment variable DB_STR to do it)
-    engine = sqlalchemy.create_engine(os.getenv("DB_STR"))
+    engine = sqlalchemy.create_engine(config.DB_STR)
 
     indexes = ["id1", "id2"]
 
