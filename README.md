@@ -11,6 +11,7 @@ This is to run parts of the code more efficiently.
 Also, you should install graphviz (sudo apt-get install graphiz or brew install graphviz). It will be necessary down the road.
 
 Now, to actually run the data processing flows:
+> cd mtgnlp
 > python prefect_flows.py
 
 Sit back and relax, this is gonna take a while (around 3hr, I'd say). 
