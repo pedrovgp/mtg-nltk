@@ -412,7 +412,7 @@ cards_subtypes = set(cards_subtypes)
 # comprules = r.text
 # -
 
-with open("rules.txt", "r", encoding="latin-1") as f:
+with open(config.ROOT_DIR.joinpath("rules.txt"), "r", encoding="latin-1") as f:
     comprules = "\n".join(f.readlines())
 
 kw_abilities_pat = r"702\.\d+\. ([A-Za-z ]+)"

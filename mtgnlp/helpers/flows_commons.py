@@ -8,14 +8,10 @@ from sqlalchemy import create_engine, engine
 logger = logging.getLogger()
 
 engine = create_engine(config.DB_STR)
-MTGMETA_DECK_TNAME = config.MTGMETA_DECK_TNAME
-MTGMETA_CARDS_TNAME = config.MTGMETA_CARDS_TNAME
-CARDS_TNAME = config.CARDS_TNAME
-DECKS_TNAME = config.DECKS_TNAME
 
 
 def get_list_or_all_deck_ids(
-    deck_ids: List = [], tname: str = CARDS_TNAME, engine=engine
+    deck_ids: List = [], tname: str = config.CARDS_TNAME, engine=engine
 ) -> List:
     # Get a list of URLs or all of them
     urls_query_txt = ", ".join([f"'{x}'" for x in deck_ids])
