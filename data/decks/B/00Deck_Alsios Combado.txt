@@ -1,0 +1,22 @@
+4 Ambassador Laquatus
+4 Augury Owl
+2 Azorius Chancery
+4 Brainstorm
+4 Cloud of Faeries
+3 Crackleburr
+2 Dimir Aqueduct
+4 Equilibrium
+4 Faerie Seer
+2 Gilded Drake
+12 Island
+4 Izzet Boilerworks
+3 Sapphire Medallion
+2 Stasis
+4 Tradewind Rider
+2 Winged Words
+
+Sideboard
+SB: 4 Capsize
+SB: 4 Force of Will
+SB: 2 Gilded Drake
+SB: 2 Stasis

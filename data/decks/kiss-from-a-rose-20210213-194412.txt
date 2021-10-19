@@ -1,0 +1,87 @@
+1 Ancient Tomb
+1 Anguished Unmaking
+1 Animation Module
+1 Arcane Signet
+1 Arguel's Blood Fast / Temple of Aclazotz
+1 Ashnod's Altar
+1 Bastion of Remembrance
+1 Blade of the Bloodchief
+1 Blood Artist
+1 Bloodline Keeper / Lord of Lineage
+1 Bloodthrone Vampire
+1 Bojuka Bog
+1 Brightclimb Pathway / Grimclimb Pathway
+1 Captivating Vampire
+1 Castle Locthwain
+1 Caves of Koilos
+1 Cleansing Nova
+1 Command Tower
+1 Cordial Vampire
+1 Cruel Celebrant
+1 Dark Prophecy
+1 Demonic Tutor
+1 Diabolic Intent
+1 Elenda, the Dusk Rose
+1 Elspeth Conquers Death
+1 Endrek Sahr, Master Breeder
+1 Enlightened Tutor
+1 Erebos, Bleak-Hearted
+1 Fabled Passage
+1 Fetid Heath
+1 Forerunner of the Legion
+1 Generous Gift
+1 Godless Shrine
+1 Gold Myr
+1 Grave Pact
+1 Hangarback Walker
+1 Hatred
+1 Isolated Chapel
+1 Kaya the Inexorable
+1 Leaden Myr
+1 Legion Lieutenant
+1 Liliana, Dreadhorde General
+1 Luminous Broodmoth
+1 Malakir Rebirth / Malakir Mire
+1 Mana Crypt
+1 Marsh Flats
+1 Mavren Fein, Dusk Apostle
+1 Mirror Entity
+1 Myriad Landscape
+1 Necropotence
+1 Nightmare Shepherd
+1 Ophiomancer
+1 Orzhov Signet
+1 Phyrexian Tower
+1 Plaguecrafter
+5 Plains
+1 Recruiter of the Guard
+1 Scrubland
+1 Sign in Blood
+1 Silent Clearing
+1 Skullclamp
+1 Sling-Gang Lieutenant
+1 Smothering Tithe
+1 Snowfield Sinkhole
+1 Sol Ring
+1 Solemn Simulacrum
+1 Sorin, Lord of Innistrad
+1 Star Compass
+1 Stoneforge Mystic
+10 Swamp
+1 Tainted Field
+1 Talisman of Hierarchy
+1 Teferi's Protection
+1 Tevesh Szat, Doom of Fools
+1 Teysa Karlov
+1 Teysa, Orzhov Scion
+1 The Eldest Reborn
+1 Urborg, Tomb of Yawgmoth
+1 Vampiric Tutor
+1 Vault of Champions
+1 Vindicate
+1 Viscera Seer
+1 Volrath's Stronghold
+1 Westvale Abbey / Ormendahl, Profane Prince
+1 Woe Strider
+1 Yahenni, Undying Partisan
+1 Yawgmoth, Thran Physician

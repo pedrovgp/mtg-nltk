@@ -1,0 +1,31 @@
+Lands
+4 Isolated Chapel
+10 Plains
+4 Swamp
+4 Unclaimed Territory
+
+Enchantments
+4 History of Benalia
+3 Ixalan's Binding
+
+Instants
+1 Settle the Wreckage
+2 Vraska's Contempt
+
+Creatures
+4 Benalish Marshal
+3 Dauntless Bodyguard
+4 Knight of Grace
+4 Knight of Malice
+3 Lyra Dawnbringer
+3 Resplendent Angel
+4 Shalai, Voice of Plenty
+3 Valiant Knight
+
+Sideboard
+SB: 4 Ajani, Adversary of Tyrants
+SB: 3 Invoke the Divine
+SB: 2 Seal Away
+SB: 2 Settle the Wreckage
+SB: 2 Sigiled Sword of Valeron
+SB: 2 Vraska's Contempt
