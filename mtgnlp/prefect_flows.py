@@ -40,7 +40,7 @@ class LoadDecksIntoDatabase(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("load_decks_into_database.py")
+        execfile("flows/load_decks_into_database.py")
 
 
 class EnhanceCardsDataWithoutNLP(Task):
@@ -80,7 +80,7 @@ class BuildGraphForAFewCardsAndSaveInPics(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("build_graph_of_selected_cards.py")
+        execfile("flows/build_graph_of_selected_cards.py")
 
 
 flow_full_data_pipeline = Flow("Imperative-MTG-NLP-full-flow")
@@ -97,28 +97,28 @@ build_text_to_entity_graphs = BuildTextToEntityGraphs()
 build_graph_for_a_few_cards_and_save_pics = BuildGraphForAFewCardsAndSaveInPics()
 
 # %% SET DEPENDENCIES
-# flow_full_data_pipeline.set_dependencies(
-#     task=build_graph_for_a_few_cards_and_save_pics,
-#     upstream_tasks=[build_text_to_entity_graphs],
-# )
-# flow_full_data_pipeline.set_dependencies(
-#     task=build_text_to_entity_graphs,
-#     upstream_tasks=[build_individual_cards_graph],
-# )
-# flow_full_data_pipeline.set_dependencies(
-#     task=build_individual_cards_graph,
-#     upstream_tasks=[enhance_cards_with_nlp],
-# )
+flow_full_data_pipeline.set_dependencies(
+    task=build_graph_for_a_few_cards_and_save_pics,
+    upstream_tasks=[build_text_to_entity_graphs],
+)
+flow_full_data_pipeline.set_dependencies(
+    task=build_text_to_entity_graphs,
+    upstream_tasks=[build_individual_cards_graph],
+)
+flow_full_data_pipeline.set_dependencies(
+    task=build_individual_cards_graph,
+    upstream_tasks=[enhance_cards_with_nlp],
+)
 
-# flow_full_data_pipeline.set_dependencies(
-#     task=enhance_cards_with_nlp,
-#     upstream_tasks=[enhance_cards_without_nlp],
-# )
+flow_full_data_pipeline.set_dependencies(
+    task=enhance_cards_with_nlp,
+    upstream_tasks=[enhance_cards_without_nlp],
+)
 
-# flow_full_data_pipeline.set_dependencies(
-#     task=enhance_cards_without_nlp,
-#     upstream_tasks=[create_cards_database],
-# )
+flow_full_data_pipeline.set_dependencies(
+    task=enhance_cards_without_nlp,
+    upstream_tasks=[create_cards_database],
+)
 
 flow_full_data_pipeline.set_dependencies(
     task=load_decks_into_database,
