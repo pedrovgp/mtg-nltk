@@ -2,7 +2,7 @@
 from mtgnlp import config
 from pyvis.network import Network
 import networkx as nx
-from prefect_flow_deck_graph_functions import (
+from mtgnlp.prefect_flow_deck_graph_functions import (
     save_decks_graphs_to_db,
     load_decks_graphs_from_db,
     draw_graph,
