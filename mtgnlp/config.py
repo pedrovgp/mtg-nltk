@@ -8,6 +8,7 @@ import mtgnlp
 
 DB_STR = os.getenv("DB_STR")
 ROOT_DIR = Path(mtgnlp.__file__).parent.parent
+LOGS_DIR = ROOT_DIR.joinpath("logs")
 DATA_DIR = ROOT_DIR.joinpath("data")
 CARD_IMAGES_DIR = ROOT_DIR.joinpath("card_images")
 PICS_DIR = ROOT_DIR.joinpath("pics")
@@ -21,5 +22,5 @@ CARDS_TEXT_TO_ENTITY_SIMPLE_PATHS_TNAME = "cards_text_to_entity_simple_paths"
 DECKS_TNAME = "decks"
 DECKS_GRAPH_TNAME = "decks_graphs"
 DECKS_FEATURES_TNAME = "deck_features"
-DECKS_DIR = ROOT_DIR.join("mtgnlp/decks/")
+DECKS_DIR = ROOT_DIR.joinpath("mtgnlp/decks/")
 ALL_PRINTINGS_PATH = DATA_DIR.joinpath("AllPrintings20211017.json")

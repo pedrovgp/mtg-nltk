@@ -69,7 +69,9 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s"
+)
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -86,7 +88,7 @@ tqdm.pandas(desc="Progress")
 
 
 engine = create_engine(config.DB_STR)
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 engine.connect()
 
 INITIAL_SETS = ["TMP", "EXO", "STH"]

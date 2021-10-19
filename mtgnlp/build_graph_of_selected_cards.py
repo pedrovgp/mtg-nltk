@@ -58,7 +58,7 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s")
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -74,7 +74,7 @@ tqdm.pandas(desc="Progress")
 # # Params
 
 engine = create_engine(config.DB_STR)
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 engine.connect()
 
 # # Helping functions
@@ -160,7 +160,7 @@ table_name = config.CARDS_JSON_TNAME
 to_table_name = config.CARDS_TEXT_TO_ENTITY_SIMPLE_PATHS_TNAME
 
 CARD_LIMIT = 100
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 df = pd.read_sql_query(
     f"""SELECT * from {table_name} ORDER BY random() LIMIT {CARD_LIMIT}""",
     # WHERE card_id IN ({','.join(["'"+x+"'" for x in chunks[0]['card_id']])})''',
@@ -168,7 +168,7 @@ df = pd.read_sql_query(
     index_col="card_id",
 )
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 df2 = pd.read_sql_query(
     f"""
 SELECT * from {table_name} as a
@@ -180,7 +180,7 @@ LIMIT 10""",
     index_col="card_id",
 )
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 df_tempest = pd.read_sql_query(
     f"""
 SELECT * from {table_name} as a
@@ -201,7 +201,7 @@ card_id = df.index[0]
 G = json_graph.node_link_graph(json.loads(df.loc[card_id, "outgoing"]))
 draw_graph(G, "pics/01-card.png")
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 # # One card - 100 random cards
 # for idx in range(CARD_LIMIT):
 #     cid = df.index[idx]
@@ -211,7 +211,7 @@ logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()
 #     draw_graph(temp, f'pics/1_card/{name}.png')
 
 # +
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 # # One card Tempest
 
 

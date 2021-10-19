@@ -21,7 +21,7 @@
 # | card_id | card_name | set | release_date (of set) |
 
 # A card should appear once for each set it has been released on
-
+from mtgnlp import config
 import uuid
 from slugify import slugify
 import collections
@@ -38,19 +38,10 @@ import inspect
 import linecache
 import os
 
-from mtgnlp import config
-
-try:
-    __file__
-except NameError:
-    # for running in ipython
-    fname = "00.01-cards-sets.py.py"
-    __file__ = os.path.abspath(os.path.realpath(fname))
-
-logPathFileName = "./logs/" + "00.01.log"
+logPathFileName = config.LOGS_DIR.joinpath("create_cards_database.log")
 
 # create logger'
-logger = logging.getLogger("00.01")
+logger = logging.getLogger("create_cards_database")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")
@@ -59,7 +50,9 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s"
+)
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -70,7 +63,7 @@ logger.addHandler(ch)
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
 # This is for terminal
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 tqdm.pandas(desc="Progress")
 
 # %% Download AllPrintings.json if it does not exist
@@ -786,7 +779,7 @@ def get_conditions_and_effects_df(pop_row, original_cols=[]):
     return res
 
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 cards_df_pops["pop_parts"] = cards_df_pops.progress_apply(
     get_conditions_and_effects_df, args=(cards_df_pops.columns,), axis=1
 )
@@ -852,7 +845,7 @@ named_card_regex = (
 # + deletable=false editable=false run_control={"frozen": true}
 # #cards_df_pop_parts = pd.read_sql_table('cards_text_parts', engine)
 # -
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 cards_df_pop_parts["text_pk"] = cards_df_pop_parts.progress_apply(
     lambda x: "-".join(
         [
@@ -866,16 +859,16 @@ cards_df_pop_parts["text_pk"] = cards_df_pop_parts.progress_apply(
 )
 
 # ## Drop empty pops
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", np.nan)
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 cards_df_pop_parts = cards_df_pop_parts.dropna(subset=["part"])
 
 # ## Avoid pop
 
 # + code_folding=[]
 # Lets avoid creating a pop node
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 cards_df_pop_parts["part_type_full"] = (
     cards_df_pop_parts["pop_type"] + "-" + cards_df_pop_parts["part_type"]
 )
@@ -891,14 +884,14 @@ cards_df_pop_parts["part_type_full"] = (
 # -
 
 # ## Export
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 cards_df_pop_parts.set_index(
     ["card_id", "paragraph_order", "pop_order", "part_order"]
 ).to_sql(export_table_name, engine, if_exists="replace")
 
 # # Create metrics for pops and parts
 
-logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line number")
 cards_df_pop_parts = pd.read_sql_table(export_table_name, engine)
 
 cards_df_pop_parts["part"] = cards_df_pop_parts["part"].replace("", np.nan).dropna()
