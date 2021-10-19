@@ -23,16 +23,41 @@ MTGMETA_CARDS_TNAME = config.MTGMETA_CARDS_TNAME
 DECKS_TNAME = config.DECKS_TNAME
 DECKS_FEATURES_TNAME = config.DECKS_FEATURES_TNAME
 
+
+@task
+def create_cards_features(
+    deck_id: str, decks_table=DECKS_TNAME, engine=engine
+) -> pd.DataFrame:
+
+    return None
+
+
+@task
+def create_sinergy_features(
+    deck_id: str, decks_table=DECKS_TNAME, engine=engine
+) -> pd.DataFrame:
+
+    return None
+
+
+@task
+def create_antergy_features(
+    deck_id: str, decks_table=DECKS_TNAME, engine=engine
+) -> pd.DataFrame:
+
+    return None
+
+
 # Creates a deck_features table and adds all calculated features to it
-def get_flow_featurize_decks(for_urls: List = []) -> Flow:
-    """For each deck url,
+def get_flow_featurize_decks(for_ids: List = []) -> Flow:
+    """For each deck id,
     create individual cards features
     sinergy features
     antergy features
 
     Args:
-        for_urls (List, optional): Pass a list if you wish to execute the flow
-            only for specif urls. Defaults to [] (process all urls in table).
+        for_ids (List, optional): Pass a list if you wish to execute the flow
+            only for specif decks. Defaults to [] (process all ids in table).
 
     Returns:
         Flow: prefect flow, that can be run
@@ -43,12 +68,12 @@ def get_flow_featurize_decks(for_urls: List = []) -> Flow:
             "https://mtgmeta.io/decks/20311?rid=275510",  # all cards in cards
         ]
         # Fetch specific list of urls or all
-        deck_urls = get_list_or_all_deck_ids(deck_ids=[])
+        deck_ids = get_list_or_all_deck_ids(deck_ids=[])
         # deck_urls = get_list_or_all_deck_urls(urls=test_urls)
 
-        cards_features = create_cards_features.map(deck_urls)
-        sinergy_features = create_sinergy_features.map(deck_urls)
-        antergy_features = create_antergy_features.map(deck_urls)
+        cards_features = create_cards_features.map(deck_ids)
+        sinergy_features = create_sinergy_features.map(deck_ids)
+        antergy_features = create_antergy_features.map(deck_ids)
 
     return featurize_decks
 

@@ -25,6 +25,7 @@ opencv-python = "^4.5.3"
 requests-cache = "^0.8.1"
 Scrapy = "^2.5.1"
 genson = "^1.2.2"
+jsonfinder = "^0.4.2"
 
 [tool.poetry.dev-dependencies]
 ipython = "^7.23.1"
