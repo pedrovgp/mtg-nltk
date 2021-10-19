@@ -33,7 +33,7 @@
 # | card_id | paragraph_order | pop_order | part_order | entity | paragraph_type | pop_type | part_type | entity_pos | entity_head | main_verb_of_path |
 # | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 # | a2fh34 | 0 | 1 | 1 | TYPE: Instant | activated | effect | intensifier | pobj | for | destroy |
-
+from mtgnlp import config
 import networkx as nx
 import datetime
 from networkx.readwrite import json_graph
@@ -84,7 +84,7 @@ tqdm.pandas(desc="Progress")
 
 # # Params
 
-engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+engine = create_engine(config.DB_STR)
 logger.info("Logging to get line")
 engine.connect()
 

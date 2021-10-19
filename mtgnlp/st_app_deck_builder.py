@@ -19,7 +19,7 @@
 
 # **DESIRED RESULT**:
 # Given a set of cards, a deck list with cards within that set.
-
+from mtgnlp import config
 import random
 from deap import tools
 from deap import creator
@@ -41,34 +41,35 @@ import inspect
 import linecache
 import os
 
-st.header('MTG: deck geration')
-st.write('''Welcome! This app uses genetic algorithms to generate MTG decks based on your given
+st.header("MTG: deck geration")
+st.write(
+    """Welcome! This app uses genetic algorithms to generate MTG decks based on your given
 optimization criteria. It generates X decks, evaluates and uses the best from X decks to 
 generate a next generation of X decks. You can choose how many generations you want to evolve your deck.
-''')
+"""
+)
 
 try:
     if __file__:
         pass
 except NameError:
     # for running in ipython
-    fname = '04c_ga_for_deck_building.py'
+    fname = "04c_ga_for_deck_building.py"
     __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = './logs/' + '04c.log'
+logPathFileName = "./logs/" + "04c.log"
 
 # create logger'
-logger = logging.getLogger('04c')
+logger = logging.getLogger("04c")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
-fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh = logging.FileHandler(f"{logPathFileName}", mode="w")
 fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -84,56 +85,59 @@ tqdm.pandas(desc="Progress")
 # # Params
 
 
-engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
+engine = create_engine(config.DB_STR)
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
-INITIAL_SETS = ['TMP', 'EXO', 'STH']
-INITIAL_SETS = ','.join([f"'{x}'" for x in INITIAL_SETS])
+INITIAL_SETS = ["TMP", "EXO", "STH"]
+INITIAL_SETS = ",".join([f"'{x}'" for x in INITIAL_SETS])
 
 st.write(
-    f'At first, we are considering only {INITIAL_SETS} as collections to build the deck from.')
+    f"At first, we are considering only {INITIAL_SETS} as collections to build the deck from."
+)
 
-df_card_pool = pd.read_sql_query(f'''
+df_card_pool = pd.read_sql_query(
+    f"""
    SELECT * 
    FROM cards
-   WHERE cards.set IN ({INITIAL_SETS})''',
-                                 engine,
-                                 # index_col='id'
-                                 )
+   WHERE cards.set IN ({INITIAL_SETS})""",
+    engine,
+    # index_col='id'
+)
 
 # Let's consider only whites to start with
 # We'll focus on: whats the best 60 card monocolor deck we can build with the given set?
-df_card_pool = df_card_pool[df_card_pool['colors'].isin(['{W}', '{}'])]
+df_card_pool = df_card_pool[df_card_pool["colors"].isin(["{W}", "{}"])]
 
-logger.info(f'df_card_pool shape: {df_card_pool.shape}')
+logger.info(f"df_card_pool shape: {df_card_pool.shape}")
 
 # Create 4 copies of each card, for us to be able to have at most 4 copies of each in a deck
-df_card_pool = pd.concat(
-    [df_card_pool for x in range(4)]).reset_index(drop=True)
+df_card_pool = pd.concat([df_card_pool for x in range(4)]).reset_index(drop=True)
 
 # initial number of cards in the decks
 IND_INIT_SIZE = 36
 # min and max items should be the max deck size (in cards)
 MIN_ITEM, MAX_ITEM = st.sidebar.slider(
-    'Minimum and maximum cards for deck',
-    min_value=30, max_value=40, value=(34, 36)
+    "Minimum and maximum cards for deck", min_value=30, max_value=40, value=(34, 36)
 ) or (34, 36)
 # NBR_ITEMS would be the whole pool of cards we can build our deck from
 NBR_ITEMS = df_card_pool.shape[0]
 
 # lets start only by maximizing P/T, both weighting 1
 POWER_WEIGHT = st.sidebar.number_input(
-    'How much would you like Power to weight in optimization?',
-    min_value=1.0, max_value=10.0, value=1.0
+    "How much would you like Power to weight in optimization?",
+    min_value=1.0,
+    max_value=10.0,
+    value=1.0,
 )
 TOUGH_WEIGHT = st.sidebar.number_input(
-    'How much would you like Thoughness to weight in optimization?',
-    min_value=1.0, max_value=10.0, value=1.0
+    "How much would you like Thoughness to weight in optimization?",
+    min_value=1.0,
+    max_value=10.0,
+    value=1.0,
 )
 
-logger.info(f'Class DeckDf creation')
+logger.info(f"Class DeckDf creation")
 
 
 class DeckVal:
@@ -166,15 +170,11 @@ class DeckVal:
      For starters, synergy and competitivenss could be calculated at deck level, as graph properties.
     """
 
-    def __init__(self, df,
-                 max_cards=MAX_ITEM,
-                 min_cards=MIN_ITEM,
-                 *args, **kwargs
-                 ):
+    def __init__(self, df, max_cards=MAX_ITEM, min_cards=MIN_ITEM, *args, **kwargs):
         self.df = df
-        self.cmc = self.df['cmc']
-        self.power_sum = self.df['power_num'].sum()
-        self.toughness_sum = self.df['toughness_num'].sum()
+        self.cmc = self.df["cmc"]
+        self.power_sum = self.df["power_num"].sum()
+        self.toughness_sum = self.df["toughness_num"].sum()
         self.total_cards = self.df.shape[0]
         self.max_cards = max_cards
         self.min_cards = min_cards
@@ -196,22 +196,20 @@ class DeckVal:
             return tuple(-10000 for x in range(len(self.WEIGHTS)))
 
         # This will be multiplied by WEIGHTS for optimization
-        metrics = (
-            self.power_sum,
-            self.toughness_sum,
-            self.colors_count
-        )
+        metrics = (self.power_sum, self.toughness_sum, self.colors_count)
         if not len(metrics) == len(self.WEIGHTS):
-            raise Exception(f'Results and WEIGHTS must have the same length.')
+            raise Exception(f"Results and WEIGHTS must have the same length.")
 
         return metrics
 
     def get_colors_set(self):
 
-        self.df['colors_set'] = self.df['colors'].apply(
-            lambda x: set(re.findall('([A-Z]){1}', x)))
+        self.df["colors_set"] = self.df["colors"].apply(
+            lambda x: set(re.findall("([A-Z]){1}", x))
+        )
         self.colors_set = functools.reduce(
-            lambda a, b: a.union(b), self.df['colors_set'].values, set())
+            lambda a, b: a.union(b), self.df["colors_set"].values, set()
+        )
         return self.colors_set
 
     def assign_individual_base_points(self):
@@ -219,81 +217,81 @@ class DeckVal:
         (unlike synergy and competitiveness points).
         It can be a function of power, toughness, effects, abilities, etc."""
 
-        self.df['ibp'] = (self.df['power_num'] +
-                          self.df['toughness_num'])  # /self.df['cmc']
+        self.df["ibp"] = (
+            self.df["power_num"] + self.df["toughness_num"]
+        )  # /self.df['cmc']
         return self.df
 
     def compute_deck_stats(self):
         deck_df = self.df
 
-        st.write(f'Final deck has {deck_df.shape[0]} cards')
+        st.write(f"Final deck has {deck_df.shape[0]} cards")
 
-        st.write('Mana curve')
+        st.write("Mana curve")
         cmc = deck_df.pivot_table(
-            index=['cmc'], values=['id'], aggfunc=lambda x: x.count()
+            index=["cmc"], values=["id"], aggfunc=lambda x: x.count()
         ).transpose()
         logger.info(cmc)
         st.write(cmc)
 
-        st.write('Ideal mana curve')
+        st.write("Ideal mana curve")
         st.write(self.ideal_mana_curve.transpose())
 
-        st.write('Cards by color')
+        st.write("Cards by color")
         colors = deck_df.pivot_table(
-            index=['colors'], values=['id'], aggfunc=lambda x: x.count()
+            index=["colors"], values=["id"], aggfunc=lambda x: x.count()
         ).transpose()
         logger.info(colors)
         st.write(colors)
 
-        st.write('Cards that add mana')
+        st.write("Cards that add mana")
         has_add = deck_df.pivot_table(
-            index=['has_add'], values=['id'], aggfunc=lambda x: x.count()
+            index=["has_add"], values=["id"], aggfunc=lambda x: x.count()
         ).transpose()
         logger.info(has_add)
         st.write(has_add)
 
-        st.write('Cards by type')
+        st.write("Cards by type")
         types = deck_df.pivot_table(
-            index=['types'], values=['id'], aggfunc=lambda x: x.count()
+            index=["types"], values=["id"], aggfunc=lambda x: x.count()
         ).transpose()
         logger.info(types)
         st.write(types)
 
-        st.write('Power and toughness by type')
+        st.write("Power and toughness by type")
         pt_by_type = deck_df.pivot_table(
-            index=['types'], values=['power_num', 'toughness_num'], aggfunc=np.sum
+            index=["types"], values=["power_num", "toughness_num"], aggfunc=np.sum
         )
         logger.info(pt_by_type)
         st.write(pt_by_type)
 
-        st.write('Power and toughness by color')
+        st.write("Power and toughness by color")
         pt_by_color = deck_df.pivot_table(
-            index=['colors'], values=['power_num', 'toughness_num'], aggfunc=np.sum
+            index=["colors"], values=["power_num", "toughness_num"], aggfunc=np.sum
         )
         logger.info(pt_by_color)
         st.write(pt_by_color)
 
-        st.write('Full deck list')
-        deck = (
+        st.write("Full deck list")
+        deck = deck_df.pivot_table(
+            index=["name"], values=["id"], aggfunc=lambda x: x.count()
+        ).merge(
             deck_df.pivot_table(
-                index=['name'], values=['id'], aggfunc=lambda x: x.count()
-            )
-            .merge(
-                deck_df.pivot_table(
-                    index=['name'], values=['power_num', 'toughness_num'], aggfunc=np.sum
-                ), left_index=True, right_index=True
-
-            )
+                index=["name"], values=["power_num", "toughness_num"], aggfunc=np.sum
+            ),
+            left_index=True,
+            right_index=True,
         )
 
         logger.info(deck)
         st.write(deck)
 
-        logger.info(f'{self.colors_count} color: {self.colors_set}')
+        logger.info(f"{self.colors_count} color: {self.colors_set}")
 
 
 def get_deck_val(set_of_ids, df=df_card_pool):
     return DeckVal(df[df.index.isin(set_of_ids)])
+
 
 #    This file is part of DEAP.
 #
@@ -344,8 +342,9 @@ toolbox.register("attr_item", random.randrange, NBR_ITEMS)
 
 # Structure initializers
 # this repeats card pulling until we get a deck
-toolbox.register("deck", tools.initRepeat, creator.Deck,
-                 toolbox.attr_item, IND_INIT_SIZE)
+toolbox.register(
+    "deck", tools.initRepeat, creator.Deck, toolbox.attr_item, IND_INIT_SIZE
+)
 # this creates a population of decks to be selected on best fitness
 toolbox.register("population", tools.initRepeat, list, toolbox.deck)
 
@@ -368,6 +367,7 @@ def cxSet(ind1, ind2):
     ind2 ^= temp  # Symmetric Difference (inplace)
     return ind1, ind2
 
+
 # Testing if adding black ony ids works
 # black_ids = list(set(df_card_pool[df_card_pool['colors'] == '{B}'].index))
 # TODO mutation strategy requires deep thought
@@ -386,7 +386,7 @@ def mutSet(deck):
         # deck.add(random.choice(black_ids))
     while len(deck) > MAX_ITEM:
         deck.remove(random.choice(sorted(tuple(deck))))
-    return deck,
+    return (deck,)
 
 
 toolbox.register("evaluate", evalDeck)
@@ -397,10 +397,21 @@ toolbox.register("select", tools.selNSGA2)
 
 def main():
     random.seed(64)
-    NGEN = st.sidebar.slider('How many deck generations to evolve?',
-                             min_value=3, max_value=100, value=30) or 30
-    MU = st.sidebar.slider('How many decks should a generation have?',
-                           min_value=2, max_value=50, value=15) or 15
+    NGEN = (
+        st.sidebar.slider(
+            "How many deck generations to evolve?", min_value=3, max_value=100, value=30
+        )
+        or 30
+    )
+    MU = (
+        st.sidebar.slider(
+            "How many decks should a generation have?",
+            min_value=2,
+            max_value=50,
+            value=15,
+        )
+        or 15
+    )
     LAMBDA = 100
     CXPB = 0.8
     MUTPB = 0.2
@@ -413,10 +424,11 @@ def main():
     stats.register("min", np.min, axis=0)
     stats.register("max", np.max, axis=0)
 
-    with st.spinner('Simulating, evolving, mutating, changing, procreating...'):
-        algorithms.eaMuPlusLambda(pop, toolbox, MU, LAMBDA, CXPB, MUTPB, NGEN, stats,
-                                  halloffame=hof)
-        st.success('Simulation finished!!')
+    with st.spinner("Simulating, evolving, mutating, changing, procreating..."):
+        algorithms.eaMuPlusLambda(
+            pop, toolbox, MU, LAMBDA, CXPB, MUTPB, NGEN, stats, halloffame=hof
+        )
+        st.success("Simulation finished!!")
         # st.balloons()
 
     best_deck_list = list(hof[0])  # list of cards in best deck
@@ -430,6 +442,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-    logger.info('Results available')
+    logger.info("Results available")
 
-    logger.info(f'FINISHED: {__file__}')
+    logger.info(f"FINISHED: {__file__}")

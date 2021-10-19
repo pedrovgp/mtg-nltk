@@ -1,26 +1,17 @@
-from helpers.upsert_df import upsert_df
+from mtgnlp import config
 import logging
-import os
 from typing import List
 
-from mtgnlp import config
 import pandas as pd
 from sqlalchemy import create_engine, engine
-
-import prefect
-from prefect import Flow, Parameter, Task, task
-
-from prefect.tasks.control_flow.filter import FilterTask
-from prefect.engine.signals import SKIP
-
 
 logger = logging.getLogger()
 
 engine = create_engine(config.DB_STR)
-MTGMETA_DECK_TNAME = os.getenv("MTGMETA_DECK_TNAME")
-MTGMETA_CARDS_TNAME = os.getenv("MTGMETA_CARDS_TNAME")
-CARDS_TNAME = os.getenv("CARDS_TNAME")
-DECKS_TNAME = os.getenv("DECKS_TNAME")
+MTGMETA_DECK_TNAME = config.MTGMETA_DECK_TNAME
+MTGMETA_CARDS_TNAME = config.MTGMETA_CARDS_TNAME
+CARDS_TNAME = config.CARDS_TNAME
+DECKS_TNAME = config.DECKS_TNAME
 
 
 def get_list_or_all_deck_ids(

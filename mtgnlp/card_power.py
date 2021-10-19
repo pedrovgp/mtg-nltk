@@ -58,23 +58,22 @@ try:
     __file__
 except NameError:
     # for running in ipython
-    fname = '04a_2_card_sinergy.py.py'
+    fname = "04a_2_card_sinergy.py.py"
     __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = './logs/' + '04a.log'
+logPathFileName = "./logs/" + "04a.log"
 
 # create logger'
-logger = logging.getLogger('04a')
+logger = logging.getLogger("04a")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
-fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh = logging.FileHandler(f"{logPathFileName}", mode="w")
 fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -89,10 +88,9 @@ tqdm.pandas(desc="Progress")
 
 # # Params
 
-engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
+engine = create_engine(config.DB_STR)
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 engine.connect()
 
 
-logger.info(f'FINISHED: {__file__}')
+logger.info(f"FINISHED: {__file__}")

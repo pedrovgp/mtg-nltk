@@ -9,7 +9,7 @@ This file has a function that, given a deck:
 5. Repeating cards get a number after it to identify them
 6. The back of the card should also be saved somewhere
 """
-
+from mtgnlp import config
 from PIL import Image
 import os
 from pathlib import Path
@@ -35,18 +35,19 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+engine = create_engine(config.DB_STR)
 
 tqdm.pandas(desc="Progress")
-requests_cache.install_cache('scryfall_cache', backend='sqlite', expire_after=24*60*60)
+requests_cache.install_cache(
+    "scryfall_cache", backend="sqlite", expire_after=24 * 60 * 60
+)
 
 # import the necessary packages
 
@@ -150,15 +151,11 @@ def add_image_height_and_width(df: pd.DataFrame) -> pd.DataFrame:
     df["image"] = df["image_local_path"].progress_apply(lambda x: Image.open(x))
     if pd.isnull(df["image"]).any():
         problems = df[pd.isnull(df["image"])]
-        problems.to_csv('problems.csv')
+        problems.to_csv("problems.csv")
         raise Exception('There are empty images in the dataframe. See "problems".')
-    
-    df["height"] = df["image"].progress_apply(
-        lambda x: x.size[1]
-    )
-    df["width"] = df["image"].progress_apply(
-        lambda x: x.size[0]
-    )
+
+    df["height"] = df["image"].progress_apply(lambda x: x.size[1])
+    df["width"] = df["image"].progress_apply(lambda x: x.size[0])
 
     return df
 
@@ -196,24 +193,22 @@ def should_correct_aspect_ratio(
 
 def generate_deck_img_dir(df: pd.DataFrame, deck_slug: str) -> pd.DataFrame:
     """Generates images in deck image dirs, risezed if needed"""
-    logger.info('generate_deck_img_dir')
+    logger.info("generate_deck_img_dir")
     Path(f"./deck_images/{deck_slug}").mkdir(parents=True, exist_ok=True)
     df["deck_image_path"] = df.progress_apply(
         lambda row: f"./deck_images/{deck_slug}/{row.card_id_in_deck}-{row.card_name}-{'resized' if row.should_resize else ''}.png",
         axis="columns",
     )
 
-    logger.info('Start resizing images')
+    logger.info("Start resizing images")
     df["deck_image"] = df.progress_apply(
         lambda row: row.image
         if not row.should_resize
-        else row.image.resize(
-            (row.new_width, row.new_height)
-        ),
+        else row.image.resize((row.new_width, row.new_height)),
         axis="columns",
     )
 
-    logger.info('Saving resized images')
+    logger.info("Saving resized images")
     df.progress_apply(
         lambda row: row.deck_image.save(row.deck_image_path)
         if not os.path.isfile(row.deck_image_path)

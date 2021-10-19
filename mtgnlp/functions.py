@@ -1,3 +1,4 @@
+from mtgnlp import config
 from sqlalchemy import create_engine
 import pandas as pd
 import numpy
@@ -50,7 +51,7 @@ def build_graphs_of_cards(obj_tuple, method="append"):
     logger.debug(f"{f_id}: {ids_to_process}")
 
     # Params
-    engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+    engine = create_engine(config.DB_STR)
     logger.debug(f"{f_id}: engine creation ran")
     engine.connect()
 

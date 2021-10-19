@@ -18,10 +18,10 @@ from mtgnlp.helpers.flows_commons import get_list_or_all_deck_ids
 logger = logging.getLogger()
 
 engine = create_engine(config.DB_STR)
-MTGMETA_DECK_TNAME = os.getenv("MTGMETA_DECK_TNAME")
-MTGMETA_CARDS_TNAME = os.getenv("MTGMETA_CARDS_TNAME")
-DECKS_TNAME = os.getenv("DECKS_TNAME")
-DECKS_FEATURES_TNAME = os.getenv("DECKS_FEATURES_TNAME")
+MTGMETA_DECK_TNAME = config.MTGMETA_DECK_TNAME
+MTGMETA_CARDS_TNAME = config.MTGMETA_CARDS_TNAME
+DECKS_TNAME = config.DECKS_TNAME
+DECKS_FEATURES_TNAME = config.DECKS_FEATURES_TNAME
 
 # Creates a deck_features table and adds all calculated features to it
 def get_flow_featurize_decks(for_urls: List = []) -> Flow:

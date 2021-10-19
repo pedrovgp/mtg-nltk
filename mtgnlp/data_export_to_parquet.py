@@ -20,7 +20,7 @@
 #
 # 1. Read all tables from mtg database into dataframes
 # 2. Export dataframes to parquet files
-
+from mtgnlp import config
 from sqlalchemy import inspect
 from sqlalchemy import create_engine
 import json
@@ -38,23 +38,22 @@ try:
     __file__
 except NameError:
     # for running in ipython
-    fname = '01.01-cards-ETL-no-NLP.py'
+    fname = "01.01-cards-ETL-no-NLP.py"
     __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = './logs/' + '01.01.log'
+logPathFileName = "./logs/" + "01.01.log"
 
 # create logger'
-logger = logging.getLogger('01.01')
+logger = logging.getLogger("01.01")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
-fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh = logging.FileHandler(f"{logPathFileName}", mode="w")
 fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -65,11 +64,10 @@ logger.addHandler(ch)
 # from tqdm.notebook import tqdm_notebook
 # tqdm_notebook.pandas()
 # This is for terminal
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
 
 
-engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
+engine = create_engine(config.DB_STR)
 engine.connect()
 
 logger.info(engine.connect())
@@ -77,10 +75,10 @@ logger.info(engine.connect())
 inspector = inspect(engine)
 schemas = inspector.get_schema_names()
 
-for table_name in inspector.get_table_names(schema='public'):
+for table_name in inspector.get_table_names(schema="public"):
     logger.info("table_name: %s" % table_name)
     df = pd.read_sql_table(table_name, engine)
     logger.debug(df.head(3))
-    df.to_parquet(f'./data/{table_name}.parquet', compression='GZIP')
+    df.to_parquet(f"./data/{table_name}.parquet", compression="GZIP")
 
-logger.info(f'FINISHED: {__file__}')
+logger.info(f"FINISHED: {__file__}")

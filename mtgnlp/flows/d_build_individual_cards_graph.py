@@ -33,7 +33,7 @@
 #           card_id2: {out: graph_from_text, in: graph_from_attributes}
 #           }
 # -
-
+from mtgnlp import config
 from networkx.readwrite import json_graph
 import tqdm
 from multiprocessing import Pool
@@ -87,7 +87,7 @@ tqdm_func = tqdm
 
 # # Params
 
-engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+engine = create_engine(config.DB_STR)
 logger.info("Logging to get line")
 engine.connect()
 

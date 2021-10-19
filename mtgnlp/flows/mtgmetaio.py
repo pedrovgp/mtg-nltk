@@ -17,9 +17,9 @@ from prefect.engine.signals import SKIP
 logger = logging.getLogger()
 
 engine = create_engine(config.DB_STR)
-MTGMETA_DECK_TNAME = "mtgmetaio_decks"
-MTGMETA_CARDS_TNAME = "mtgmetaio_cards_in_deck"
-DECKS_TNAME = "decks"
+MTGMETA_DECK_TNAME = config.MTGMETA_DECK_TNAME
+MTGMETA_CARDS_TNAME = config.MTGMETA_CARDS_TNAME
+DECKS_TNAME = config.DECKS_TNAME
 
 QUERY_TO_GET_MISSING_CARDS_NAMES = f"""
     WITH filtered as (
