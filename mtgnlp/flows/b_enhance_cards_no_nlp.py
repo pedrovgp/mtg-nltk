@@ -90,7 +90,7 @@ tqdm.pandas(desc="Progress")
 # %% Load cards set
 
 # + hideCode=false
-allprintings_fname = f"./{os.getenv('ALL_PRINTINGS_FILENAME')}"
+allprintings_fname = config.ALL_PRINTINGS_PATH
 sets = json.load(open(allprintings_fname, "rb"))["data"]
 
 cards_all = []

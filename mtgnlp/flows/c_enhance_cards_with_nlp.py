@@ -102,7 +102,7 @@ logger.addHandler(ch)
 tqdm.pandas(desc="Progress")
 
 # + hideCode=false
-allprintings_fname = f"./{os.getenv('ALL_PRINTINGS_FILENAME')}"
+allprintings_fname = config.ALL_PRINTINGS_PATH
 sets = json.load(open(allprintings_fname, "rb"))["data"]
 # -
 

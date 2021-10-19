@@ -75,7 +75,7 @@ tqdm.pandas(desc="Progress")
 
 # %% Download AllPrintings.json if it does not exist
 # https://mtgjson.com/api/v5/AllPrintings.json
-allprintings_fname = f"./{os.getenv('ALL_PRINTINGS_FILENAME')}"
+allprintings_fname = config.ALL_PRINTINGS_PATH
 logger.info(f"Download {allprintings_fname} if it does not exist")
 # allprintings_fname = "./AllPrintings20210615.json"
 if not os.path.isfile(allprintings_fname):
