@@ -48,7 +48,7 @@ class EnhanceCardsDataWithoutNLP(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("b_enhance_cards_no_nlp.py")
+        execfile("flows/enhance_cards_no_nlp.py")
 
 
 class EnhanceCardsDataWithNLP(Task):
@@ -56,7 +56,7 @@ class EnhanceCardsDataWithNLP(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("c_enhance_cards_with_nlp.py")
+        execfile("flows/enhance_cards_with_nlp.py")
 
 
 class BuildIndividualCardsInOutGraph(Task):
@@ -64,7 +64,7 @@ class BuildIndividualCardsInOutGraph(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("d_build_individual_cards_graph.py")
+        execfile("flows/build_individual_cards_graph.py")
 
 
 class BuildTextToEntityGraphs(Task):
@@ -72,7 +72,7 @@ class BuildTextToEntityGraphs(Task):
         super().__init__(*args, **kwargs)
 
     def run(self):
-        execfile("e_build_text_to_entity_graphs.py")
+        execfile("flows/build_text_to_entity_graphs.py")
 
 
 class BuildGraphForAFewCardsAndSaveInPics(Task):
