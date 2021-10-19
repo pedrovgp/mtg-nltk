@@ -51,7 +51,7 @@ tqdm.pandas(desc="Progress")
 engine = create_engine(config.DB_STR)
 engine.connect()
 
-decks_dir = "./decks/"
+decks_dir = config.DECKS_DIR
 
 decks_table_name = config.DECKS_TNAME
 
@@ -177,7 +177,7 @@ for deck in tqdm(decks):
 deck_regex = r"^(?P<amount>\d+) (?P<card_name>.*?)\n"
 
 all_cards_names_in_decks = []
-for path, dir, filenames in os.walk("./decks/"):
+for path, dir, filenames in os.walk(decks_dir):
     for i, filename in enumerate(filenames):
 
         print(
