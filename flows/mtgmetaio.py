@@ -20,6 +20,64 @@ MTGMETA_DECK_TNAME = "mtgmetaio_decks"
 MTGMETA_CARDS_TNAME = "mtgmetaio_cards_in_deck"
 DECKS_TNAME = "decks"
 
+QUERY_TO_GET_MISSING_CARDS_NAMES = f"""
+    WITH filtered as (
+        SELECT * FROM "{MTGMETA_CARDS_TNAME}"
+    )
+    , result as (
+        SELECT "deck_url", "card_slug", "name_slug" as "canonical_skryfall_name_slug"
+        FROM filtered
+        LEFT JOIN "cards"
+        ON "card_slug"="name_slug"
+    )
+        SELECT DISTINCT card_slug
+        FROM result
+        WHERE "canonical_skryfall_name_slug" is null
+"""
+
+
+def get_missing(q=QUERY_TO_GET_MISSING_CARDS_NAMES, engine=engine):
+    missing = list(pd.read_sql_query(q, engine)["card_slug"])
+    res = {}
+    for miss in missing:
+        # print(miss)
+        query = f"""SELECT "name_slug" FROM cards WHERE "name_slug" LIKE '%%{miss}%%'"""
+        # print(query)
+        matches = list(pd.read_sql_query(query, engine)["name_slug"].unique())
+        if len(matches) != 1:
+            raise Exception(
+                f"Found less or more than one match for unfound slug: {miss}: {matches}"
+            )
+        res[miss] = matches[0]
+    return res
+    # {
+    # "arlinn_the_pack_s_hope": "arlinn_the_pack_s_hope_arlinn_the_moon_s_fury",
+    # "barkchannel_pathway": "barkchannel_pathway_tidechannel_pathway",
+    # "beanstalk_giant": "beanstalk_giant_fertile_footsteps",
+    # ...
+    # }
+
+
+def update_all_slugs_in_mtgmetaio(
+    card_tname=MTGMETA_CARDS_TNAME, engine=engine
+) -> None:
+    logger.info("Updating card slugs")
+    for old, new in get_missing().items():
+        logger.debug(f"{old}: {new}")
+        query = f"""
+            UPDATE "{card_tname}"
+            SET 
+            "card_slug" = REPLACE (
+                "card_slug",
+                '{old}',
+                '{new}'
+            )
+            WHERE "card_slug"='{old}'
+        """
+        a = engine.execute(query)
+        logger.debug(a)
+
+
 # Scrapy crawl flow
 
 
@@ -69,7 +127,6 @@ def get_list_or_all_deck_urls(
 @task
 def check_if_all_cards_exist(
     deck_url: str,
-    error_table: str = f"{MTGMETA_CARDS_TNAME}_errors",
     engine=engine,
     mtgmeta_cards_tname: str = MTGMETA_CARDS_TNAME,
 ) -> str:
@@ -100,10 +157,10 @@ def check_if_all_cards_exist(
     if not errors_df.empty:
         logger.info(
             f"Deck {deck_url} contains cards which are not in cards database. "
-            f"They were saved in {error_table}. This deck will not be added to decks table."
+            f"This deck will not be added to decks table. "
+            f"Run the query below to find all the problematic cards"
         )
-        errors_df = errors_df.set_index(["deck_url", "card_slug"])
-        upsert_df(errors_df, error_table, engine)
+        logger.info(f"{QUERY_TO_GET_MISSING_CARDS_NAMES}")
         return None
 
     return deck_url
@@ -197,6 +254,8 @@ def get_flow_landing_to_decks(for_urls: List = []) -> Flow:
         Flow: prefect flow, that can be run
     """
     with Flow("landing-to-decks") as flow_landing_to_decks:
+
+        update_all_slugs_in_mtgmetaio()
 
         test_urls = [
             "https://mtgmeta.io/decks/20311?rid=275510",  # all cards in cards
