@@ -14,12 +14,6 @@ import linecache
 
 logPathFileName = config.LOGS_DIR.joinpath("functions_build_graphs_of_cards.log")
 
-# This is for terminal
-# from tqdm import tqdm
-# tqdm.pandas(desc="Progress")
-# tqdm_func = tqdm
-
-
 write_every = 200  # cards
 
 

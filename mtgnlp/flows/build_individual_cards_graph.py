@@ -37,7 +37,7 @@ from mtgnlp import config
 from networkx.readwrite import json_graph
 import tqdm
 from multiprocessing import Pool
-import functions
+from mtgnlp.helpers import functions
 import networkx as nx
 import datetime
 import json
