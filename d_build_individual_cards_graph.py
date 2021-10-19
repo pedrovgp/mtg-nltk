@@ -55,38 +55,26 @@ import logging
 import inspect
 import linecache
 
-logPathFileName = './logs/' + '02.log'
+logPathFileName = "./logs/" + "d_build_individual_cards_graph.log"
 
 # create logger'
-logger = logging.getLogger('02')
+logger = logging.getLogger("d_build_individual_cards_graph")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
-fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh = logging.FileHandler(f"{logPathFileName}", mode="w")
 fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
 formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    "%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s"
+)
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(fh)
 logger.addHandler(ch)
-
-
-def log_next_line(lines=1, level=logger.info):
-    '''
-    TODO: this will always log again this same function when called
-
-    :param lines: how many relative lines ahead to log (negative for previous)
-    :param level: logger function with log level to log
-    :return: None, but logs stuff
-    '''
-    for i in range(1, lines+1):
-        level(linecache.getline(
-            __file__, inspect.getlineno(inspect.currentframe()) + i))
 
 
 # This is for jupyter notebook
@@ -99,23 +87,22 @@ tqdm_func = tqdm
 
 # # Params
 
-engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
+engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+logger.info("Logging to get line")
 engine.connect()
 
-out_nodes_table_name = 'outnodes'
-out_edges_table_name = 'outedges'
-in_nodes_table_name = 'innodes'
-in_edges_table_name = 'inedges'
+out_nodes_table_name = "outnodes"
+out_edges_table_name = "outedges"
+in_nodes_table_name = "innodes"
+in_edges_table_name = "inedges"
 
-cards_graphs_as_json_to_table = 'cards_graphs_as_json_temp'
+cards_graphs_as_json_to_table = "cards_graphs_as_json_temp"
 
 # # Create dataframe of cards
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
-out_nodes = pd.read_sql_table(out_nodes_table_name, engine, columns=[
-                              'card_id', 'card_name', 'type'])
+logger.info("Logging to get line")
+out_nodes = pd.read_sql_table(
+    out_nodes_table_name, engine, columns=["card_id", "card_name", "type"]
+)
 # out_edges = pd.read_sql_table(out_edges_table_name, engine)
 # in_nodes = pd.read_sql_table(in_nodes_table_name, engine)
 # in_edges = pd.read_sql_table(in_edges_table_name, engine)
@@ -127,10 +114,11 @@ out_nodes = pd.read_sql_table(out_nodes_table_name, engine, columns=[
 # -
 
 # There is no need to build a graph for the same named card twice
-unique_cards = out_nodes[out_nodes['type'] ==
-                         'card'].drop_duplicates(subset=['card_name'])
+unique_cards = out_nodes[out_nodes["type"] == "card"].drop_duplicates(
+    subset=["card_name"]
+)
 
-ids_to_process = unique_cards['card_id']  # .sample(11)
+ids_to_process = unique_cards["card_id"]  # .sample(11)
 
 # # Helping functions
 
@@ -139,14 +127,15 @@ ids_to_process = unique_cards['card_id']  # .sample(11)
 
 
 def splitDataFrameList(df, target_column, separator=None):
-    '''
+    """
     https://gist.github.com/jlln/338b4b0b55bd6984f883
     df = dataframe to split,
     target_column = the column containing the values to split
     separator = the symbol used to perform the split
-    returns: a dataframe with each entry for the target column separated, with each element moved into a new row. 
+    returns: a dataframe with each entry for the target column separated, with each element moved into a new row.
     The values in the other columns are duplicated across the newly divided rows.
-    '''
+    """
+
     def splitListToRows(row, row_accumulator, target_column, separator):
         split_row = row[target_column]  # .split(separator)
         if isinstance(split_row, collections.Iterable):
@@ -158,9 +147,9 @@ def splitDataFrameList(df, target_column, separator=None):
             new_row = row.to_dict()
             new_row[target_column] = numpy.nan
             row_accumulator.append(new_row)
+
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(
-        new_rows, target_column, separator))
+    df.apply(splitListToRows, axis=1, args=(new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
@@ -174,7 +163,9 @@ class HashableDict(OrderedDict):
         return hash(tuple(sorted(self.items())))
 
     def hexdigext(self):
-        return hashlib.sha256(''.join([str(k)+str(v) for k, v in self.items()]).encode()).hexdigest()
+        return hashlib.sha256(
+            "".join([str(k) + str(v) for k, v in self.items()]).encode()
+        ).hexdigest()
 
 
 # + code_folding=[0]
@@ -194,61 +185,69 @@ class key_dependent_dict(defaultdict):
 
 
 def entity_key_hash(key):
-    return HashableDict({'entity': key}).hexdigext()
+    return HashableDict({"entity": key}).hexdigext()
 
 
 # + code_folding=[0]
 # function to draw a graph to png
-shapes = ['box', 'polygon', 'ellipse', 'oval',
-          'circle', 'egg', 'triangle', 'exagon', 'star']
-colors = ['blue', 'black', 'red', '#db8625',
-          'green', 'gray', 'cyan', '#ed125b']
-styles = ['filled', 'rounded', 'rounded, filled', 'dashed', 'dotted, bold']
+shapes = [
+    "box",
+    "polygon",
+    "ellipse",
+    "oval",
+    "circle",
+    "egg",
+    "triangle",
+    "exagon",
+    "star",
+]
+colors = ["blue", "black", "red", "#db8625", "green", "gray", "cyan", "#ed125b"]
+styles = ["filled", "rounded", "rounded, filled", "dashed", "dotted, bold"]
 
 entities_colors = {
-    'PLAYER': '#FF6E6E',
-    'ZONE': '#F5D300',
-    'ACTION': '#1ADA00',
-    'MANA': '#00DA84',
-    'SUBTYPE': '#0DE5E5',
-    'TYPE': '#0513F0',
-    'SUPERTYPE': '#8D0BCA',
-    'ABILITY': '#cc3300',
-    'COLOR': '#666633',
-    'STEP': '#E0E0F8'
+    "PLAYER": "#FF6E6E",
+    "ZONE": "#F5D300",
+    "ACTION": "#1ADA00",
+    "MANA": "#00DA84",
+    "SUBTYPE": "#0DE5E5",
+    "TYPE": "#0513F0",
+    "SUPERTYPE": "#8D0BCA",
+    "ABILITY": "#cc3300",
+    "COLOR": "#666633",
+    "STEP": "#E0E0F8",
 }
 
 
-def draw_graph(G, filename='test.png'):
+def draw_graph(G, filename="test.png"):
     pdot = nx.drawing.nx_pydot.to_pydot(G)
 
     for i, node in enumerate(pdot.get_nodes()):
         attrs = node.get_attributes()
-        node.set_label(str(attrs.get('label', 'none')))
-    #     node.set_fontcolor(colors[random.randrange(len(colors))])
-        entity_node_ent_type = attrs.get('entity_node_ent_type', numpy.nan)
+        node.set_label(str(attrs.get("label", "none")))
+        #     node.set_fontcolor(colors[random.randrange(len(colors))])
+        entity_node_ent_type = attrs.get("entity_node_ent_type", numpy.nan)
         if not pd.isnull(entity_node_ent_type):
             color = entities_colors[entity_node_ent_type.strip('"')]
             node.set_fillcolor(color)
             node.set_color(color)
-            node.set_shape('hexagon')
+            node.set_shape("hexagon")
             # node.set_colorscheme()
-            node.set_style('filled')
+            node.set_style("filled")
 
-        node_type = attrs.get('type', None)
+        node_type = attrs.get("type", None)
         if node_type == '"card"':
-            color = '#999966'
+            color = "#999966"
             node.set_fillcolor(color)
-#             node.set_color(color)
-            node.set_shape('star')
+            #             node.set_color(color)
+            node.set_shape("star")
             # node.set_colorscheme()
-            node.set_style('filled')
+            node.set_style("filled")
     #
-        # pass
+    # pass
 
     for i, edge in enumerate(pdot.get_edges()):
         att = edge.get_attributes()
-        att = att.get('label', 'NO-LABEL')
+        att = att.get("label", "NO-LABEL")
         edge.set_label(att)
     #     edge.set_fontcolor(colors[random.randrange(len(colors))])
     #     edge.set_style(styles[random.randrange(len(styles))])
@@ -258,7 +257,10 @@ def draw_graph(G, filename='test.png'):
     pdot.write_png(png_path)
 
     from IPython.display import Image
+
     return Image(png_path)
+
+
 # -
 
 # # Build graph with Networkx
@@ -736,31 +738,28 @@ def draw_graph(G, filename='test.png'):
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
-        yield l[i:i + n]
+        yield l[i : i + n]
 
 
 ids_to_process = list(ids_to_process)
 first_tuple = tuple([[ids_to_process[0]]])
 list_of_lists_of_ids = list(
-    chunks(ids_to_process[1:], int(len(ids_to_process[1:])/1000)))
+    chunks(ids_to_process[1:], int(len(ids_to_process[1:]) / 1000))
+)
 
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
-functions.build_graphs_of_cards(first_tuple, method='replace')
+logger.info("Logging to get line")
+functions.build_graphs_of_cards(first_tuple, method="replace")
 
 # +
 list_to_distribute = []
 
 for l in list_of_lists_of_ids:
-    list_to_distribute.append(
-        tuple([l])
-    )
+    list_to_distribute.append(tuple([l]))
 # list_to_distribute
 
 # +
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
-if __name__ == '__main__':
+logger.info("Logging to get line")
+if __name__ == "__main__":
     # for l in tqdm_func(list_to_distribute):
     #     functions.build_graphs_of_cards(l)
     total = len(list_to_distribute)
@@ -770,29 +769,29 @@ if __name__ == '__main__':
         # r = list(p.imap(functions.build_graphs_of_cards, list_to_distribute))
         for i in p.imap_unordered(functions.build_graphs_of_cards, list_to_distribute):
             processed += 1
-            logger.info(f'Processed {total}/{processed}: {i}')
-# -
+            logger.info(f"Processed {total}/{processed}: {i}")
+    # -
 
-# ### Testing
+    # ### Testing
 
-# + deletable=false editable=false run_control={"frozen": true}
-# ids_to_process = range(298)
+    # + deletable=false editable=false run_control={"frozen": true}
+    # ids_to_process = range(298)
 
-# + deletable=false editable=false run_control={"frozen": true}
-# def chunks(l, n):
-#     """Yield successive n-sized chunks from l."""
-#     for i in range(0, len(l), n):
-#         yield l[i:i + n]
-#
-# list_of_lists_of_ids = list(chunks(ids_to_process, int(len(ids_to_process)/4)))
+    # + deletable=false editable=false run_control={"frozen": true}
+    # def chunks(l, n):
+    #     """Yield successive n-sized chunks from l."""
+    #     for i in range(0, len(l), n):
+    #         yield l[i:i + n]
+    #
+    # list_of_lists_of_ids = list(chunks(ids_to_process, int(len(ids_to_process)/4)))
 
-# + deletable=false editable=false run_control={"frozen": true}
-# list_to_distribute = []
-# for l in list_of_lists_of_ids:
-#     print(len(l))
-#     list_to_distribute.append(
-#         tuple(l)#, cards_graphs_as_json_to_table, out_nodes, out_edges, in_nodes, in_edges, engine)
-#     )
-# #list_to_distribute
+    # + deletable=false editable=false run_control={"frozen": true}
+    # list_to_distribute = []
+    # for l in list_of_lists_of_ids:
+    #     print(len(l))
+    #     list_to_distribute.append(
+    #         tuple(l)#, cards_graphs_as_json_to_table, out_nodes, out_edges, in_nodes, in_edges, engine)
+    #     )
+    # #list_to_distribute
 
-    logger.info(f'FINISHED: {__file__}')
+    logger.info(f"FINISHED: {__file__}")

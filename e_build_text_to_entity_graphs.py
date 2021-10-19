@@ -54,38 +54,26 @@ import logging
 import inspect
 import linecache
 
-logPathFileName = './logs/' + '03.log'
+logPathFileName = "./logs/" + "e_build_text_to_entity_graphs.log"
 
 # create logger'
-logger = logging.getLogger('03')
+logger = logging.getLogger("e_build_text_to_entity_graphs")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
-fh = logging.FileHandler(f"{logPathFileName}", mode='w')
+fh = logging.FileHandler(f"{logPathFileName}", mode="w")
 fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
 formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    "%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s"
+)
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(fh)
 logger.addHandler(ch)
-
-
-def log_next_line(lines=1, level=logger.info):
-    '''
-    TODO: this will always log again this same function when called
-
-    :param lines: how many relative lines ahead to log (negative for previous)
-    :param level: logger function with log level to log
-    :return: None, but logs stuff
-    '''
-    for i in range(1, lines+1):
-        level(linecache.getline(
-            __file__, inspect.getlineno(inspect.currentframe()) + i))
 
 
 # This is for jupyter notebook
@@ -96,9 +84,8 @@ tqdm.pandas(desc="Progress")
 
 # # Params
 
-engine = create_engine('postgresql+psycopg2://mtg:mtg@localhost:5432/mtg')
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
+engine = create_engine("postgresql+psycopg2://mtg:mtg@localhost:5432/mtg")
+logger.info("Logging to get line")
 engine.connect()
 
 # # Helping functions
@@ -108,14 +95,15 @@ engine.connect()
 
 
 def splitDataFrameList(df, target_column, separator=None):
-    '''
+    """
     https://gist.github.com/jlln/338b4b0b55bd6984f883
     df = dataframe to split,
     target_column = the column containing the values to split
     separator = the symbol used to perform the split
-    returns: a dataframe with each entry for the target column separated, with each element moved into a new row. 
+    returns: a dataframe with each entry for the target column separated, with each element moved into a new row.
     The values in the other columns are duplicated across the newly divided rows.
-    '''
+    """
+
     def splitListToRows(row, row_accumulator, target_column, separator):
         split_row = row[target_column]  # .split(separator)
         if isinstance(split_row, collections.Iterable):
@@ -127,9 +115,9 @@ def splitDataFrameList(df, target_column, separator=None):
             new_row = row.to_dict()
             new_row[target_column] = numpy.nan
             row_accumulator.append(new_row)
+
     new_rows = []
-    df.apply(splitListToRows, axis=1, args=(
-        new_rows, target_column, separator))
+    df.apply(splitListToRows, axis=1, args=(new_rows, target_column, separator))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
@@ -143,7 +131,9 @@ class HashableDict(OrderedDict):
         return hash(tuple(sorted(self.items())))
 
     def hexdigext(self):
-        return hashlib.sha256(''.join([str(k)+str(v) for k, v in self.items()]).encode()).hexdigest()
+        return hashlib.sha256(
+            "".join([str(k) + str(v) for k, v in self.items()]).encode()
+        ).hexdigest()
 
 
 # + code_folding=[0]
@@ -163,61 +153,69 @@ class key_dependent_dict(defaultdict):
 
 
 def entity_key_hash(key):
-    return HashableDict({'entity': key}).hexdigext()
+    return HashableDict({"entity": key}).hexdigext()
 
 
 # + code_folding=[0]
 # function to draw a graph to png
-shapes = ['box', 'polygon', 'ellipse', 'oval',
-          'circle', 'egg', 'triangle', 'exagon', 'star']
-colors = ['blue', 'black', 'red', '#db8625',
-          'green', 'gray', 'cyan', '#ed125b']
-styles = ['filled', 'rounded', 'rounded, filled', 'dashed', 'dotted, bold']
+shapes = [
+    "box",
+    "polygon",
+    "ellipse",
+    "oval",
+    "circle",
+    "egg",
+    "triangle",
+    "exagon",
+    "star",
+]
+colors = ["blue", "black", "red", "#db8625", "green", "gray", "cyan", "#ed125b"]
+styles = ["filled", "rounded", "rounded, filled", "dashed", "dotted, bold"]
 
 entities_colors = {
-    'PLAYER': '#FF6E6E',
-    'ZONE': '#F5D300',
-    'ACTION': '#1ADA00',
-    'MANA': '#00DA84',
-    'SUBTYPE': '#0DE5E5',
-    'TYPE': '#0513F0',
-    'SUPERTYPE': '#8D0BCA',
-    'ABILITY': '#cc3300',
-    'COLOR': '#666633',
-    'STEP': '#E0E0F8'
+    "PLAYER": "#FF6E6E",
+    "ZONE": "#F5D300",
+    "ACTION": "#1ADA00",
+    "MANA": "#00DA84",
+    "SUBTYPE": "#0DE5E5",
+    "TYPE": "#0513F0",
+    "SUPERTYPE": "#8D0BCA",
+    "ABILITY": "#cc3300",
+    "COLOR": "#666633",
+    "STEP": "#E0E0F8",
 }
 
 
-def draw_graph(G, filename='test.png'):
+def draw_graph(G, filename="test.png"):
     pdot = nx.drawing.nx_pydot.to_pydot(G)
 
     for i, node in enumerate(pdot.get_nodes()):
         attrs = node.get_attributes()
-        node.set_label(str(attrs.get('label', 'none')))
-    #     node.set_fontcolor(colors[random.randrange(len(colors))])
-        entity_node_ent_type = attrs.get('entity_node_ent_type', numpy.nan)
+        node.set_label(str(attrs.get("label", "none")))
+        #     node.set_fontcolor(colors[random.randrange(len(colors))])
+        entity_node_ent_type = attrs.get("entity_node_ent_type", numpy.nan)
         if not pd.isnull(entity_node_ent_type):
             color = entities_colors[entity_node_ent_type.strip('"')]
             node.set_fillcolor(color)
             node.set_color(color)
-            node.set_shape('hexagon')
+            node.set_shape("hexagon")
             # node.set_colorscheme()
-            node.set_style('filled')
+            node.set_style("filled")
 
-        node_type = attrs.get('type', None)
+        node_type = attrs.get("type", None)
         if node_type == '"card"':
-            color = '#999966'
+            color = "#999966"
             node.set_fillcolor(color)
-#             node.set_color(color)
-            node.set_shape('star')
+            #             node.set_color(color)
+            node.set_shape("star")
             # node.set_colorscheme()
-            node.set_style('filled')
+            node.set_style("filled")
     #
-        # pass
+    # pass
 
     for i, edge in enumerate(pdot.get_edges()):
         att = edge.get_attributes()
-        att = att.get('label', 'NO-LABEL')
+        att = att.get("label", "NO-LABEL")
         edge.set_label(att)
     #     edge.set_fontcolor(colors[random.randrange(len(colors))])
     #     edge.set_style(styles[random.randrange(len(styles))])
@@ -227,7 +225,10 @@ def draw_graph(G, filename='test.png'):
     pdot.write_png(png_path)
 
     from IPython.display import Image
+
     return Image(png_path)
+
+
 # -
 
 # # Build graph with Networkx
@@ -237,34 +238,38 @@ def draw_graph(G, filename='test.png'):
 # + deletable=false editable=false run_control={"frozen": true}
 with engine.connect() as con:
     try:
-        con.execute('''DROP TABLE public.cards_graphs_as_json ''')
+        con.execute("""DROP TABLE public.cards_graphs_as_json """)
     except Exception as e:
         pass
-    con.execute('''CREATE TABLE public.cards_graphs_as_json AS
-                   (SELECT * FROM public.cards_graphs_as_json_temp)''')
+    con.execute(
+        """CREATE TABLE public.cards_graphs_as_json AS
+                   (SELECT * FROM public.cards_graphs_as_json_temp)"""
+    )
 
 # +
-table_name = 'cards_graphs_as_json'
-to_table_name = 'cards_text_to_entity_simple_paths'
+table_name = "cards_graphs_as_json"
+to_table_name = "cards_text_to_entity_simple_paths"
 chunk_size = 200
 
-all_ids = pd.read_sql_query('SELECT card_id from {0}'.
-                            format(table_name),
-                            engine,
-                            )
-chunks = [all_ids.iloc[all_ids.index[i:i + chunk_size]]
-          for i in range(0, all_ids.shape[0], chunk_size)]
+all_ids = pd.read_sql_query(
+    "SELECT card_id from {0}".format(table_name),
+    engine,
+)
+chunks = [
+    all_ids.iloc[all_ids.index[i : i + chunk_size]]
+    for i in range(0, all_ids.shape[0], chunk_size)
+]
 
 
 # + code_folding=[]
 def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
-    '''INPUT: a row with outgoing graph of card
-    RETURNs: a dataframe with each row corresponding to a path from text to entity'''
-    if not row['outgoing']:
+    """INPUT: a row with outgoing graph of card
+    RETURNs: a dataframe with each row corresponding to a path from text to entity"""
+    if not row["outgoing"]:
         return []
-    G = json_graph.node_link_graph(json.loads(row['outgoing']))
-    card_nodes = [x for x, y in G.nodes(data=True) if y['type'] == 'card']
-    entity_nodes = [x for x, y in G.nodes(data=True) if y['type'] == 'entity']
+    G = json_graph.node_link_graph(json.loads(row["outgoing"]))
+    card_nodes = [x for x, y in G.nodes(data=True) if y["type"] == "card"]
+    entity_nodes = [x for x, y in G.nodes(data=True) if y["type"] == "entity"]
     assert len(card_nodes) == 1
 
     new_rows = []
@@ -274,59 +279,52 @@ def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
             graph_row = {}
             path_g = G.subgraph(path)
 
-            graph_row['card_id'] = row['card_id']
-            graph_row['path_graph_json'] = json.dumps(
-                json_graph.node_link_data(path_g))
-            graph_row['part'] = G.nodes[path[1]]['part']
-            has_add = re.findall(r'add ', str(
-                graph_row['part']), flags=re.IGNORECASE)
-            graph_row['has_add'] = True if has_add else False
+            graph_row["card_id"] = row["card_id"]
+            graph_row["path_graph_json"] = json.dumps(json_graph.node_link_data(path_g))
+            graph_row["part"] = G.nodes[path[1]]["part"]
+            has_add = re.findall(r"add ", str(graph_row["part"]), flags=re.IGNORECASE)
+            graph_row["has_add"] = True if has_add else False
 
             # Text type and orders
-    #         graph_row['paragraph_type'] = G.node[path[1]]['paragraph_type']
-            graph_row['paragraph_order'] = G.nodes[path[1]]['paragraph_order']
-            graph_row['pop_type'] = G.nodes[path[1]]['pop_type']
-            graph_row['pop_order'] = G.nodes[path[1]]['pop_order']
-            graph_row['part_type'] = G.nodes[path[1]]['part_type']
-            graph_row['part_order'] = G.nodes[path[1]]['part_order']
+            #         graph_row['paragraph_type'] = G.node[path[1]]['paragraph_type']
+            graph_row["paragraph_order"] = G.nodes[path[1]]["paragraph_order"]
+            graph_row["pop_type"] = G.nodes[path[1]]["pop_type"]
+            graph_row["pop_order"] = G.nodes[path[1]]["pop_order"]
+            graph_row["part_type"] = G.nodes[path[1]]["part_type"]
+            graph_row["part_order"] = G.nodes[path[1]]["part_order"]
 
-            graph_row['path_text_key'] = (graph_row['card_id']
-                                          + '-' +
-                                          str(int(
-                                              graph_row['paragraph_order']))
-                                          + '-' +
-                                          str(int(graph_row['pop_order']))
-                                          + '-' +
-                                          str(int(graph_row['part_order']))
-                                          )
+            graph_row["path_text_key"] = (
+                graph_row["card_id"]
+                + "-"
+                + str(int(graph_row["paragraph_order"]))
+                + "-"
+                + str(int(graph_row["pop_order"]))
+                + "-"
+                + str(int(graph_row["part_order"]))
+            )
 
             # Entities info
-            graph_row['entity_node_entity'] = G.nodes[path[-1]
-                                                      ]['entity_node_entity']
-            graph_row['entity_node_ent_type'] = G.nodes[path[-1]
-                                                        ]['entity_node_ent_type']
-            graph_row['entity_node_desc'] = G.nodes[path[-1]
-                                                    ]['entity_node_desc']
-            graph_row['entity_node_lemma'] = G.nodes[path[-1]
-                                                     ]['entity_node_lemma']
+            graph_row["entity_node_entity"] = G.nodes[path[-1]]["entity_node_entity"]
+            graph_row["entity_node_ent_type"] = G.nodes[path[-1]][
+                "entity_node_ent_type"
+            ]
+            graph_row["entity_node_desc"] = G.nodes[path[-1]]["entity_node_desc"]
+            graph_row["entity_node_lemma"] = G.nodes[path[-1]]["entity_node_lemma"]
 
-            graph_row['path_pk'] = (graph_row['path_text_key']
-                                    + '-'+graph_row['entity_node_entity']
-                                    )
+            graph_row["path_pk"] = (
+                graph_row["path_text_key"] + "-" + graph_row["entity_node_entity"]
+            )
 
-            graph_row['entity_pos'] = G.nodes[path[-2]]['token_node_pos']
-            graph_row['entity_tag'] = G.nodes[path[-2]]['token_node_tag']
-            graph_row['entity_head_dep'] = G.nodes[path[-2]]['token_head_dep']
+            graph_row["entity_pos"] = G.nodes[path[-2]]["token_node_pos"]
+            graph_row["entity_tag"] = G.nodes[path[-2]]["token_node_tag"]
+            graph_row["entity_head_dep"] = G.nodes[path[-2]]["token_head_dep"]
 
             # Entities head info
-            if G.nodes[path[-3]]['type'] == 'token':
-                graph_row['entity_head'] = G.nodes[path[-3]]['token_node_text']
-                graph_row['entity_head_tag'] = G.nodes[path[-3]
-                                                       ]['token_node_tag']
-                graph_row['entity_head_head_dep'] = G.nodes[path[-2]
-                                                            ]['token_head_dep']
-                graph_row['entity_head_pos'] = G.nodes[path[-2]
-                                                       ]['token_node_pos']
+            if G.nodes[path[-3]]["type"] == "token":
+                graph_row["entity_head"] = G.nodes[path[-3]]["token_node_text"]
+                graph_row["entity_head_tag"] = G.nodes[path[-3]]["token_node_tag"]
+                graph_row["entity_head_head_dep"] = G.nodes[path[-2]]["token_head_dep"]
+                graph_row["entity_head_pos"] = G.nodes[path[-2]]["token_node_pos"]
 
             # Append row
             new_rows.append(graph_row)
@@ -383,64 +381,84 @@ def get_df_for_subgraphs_of_paths_from_card_to_entities(row):
 #         new_rows.append(graph_row)
 # n = pd.DataFrame(new_rows)
 # -
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
-df = pd.read_sql_query('SELECT * from {0} WHERE card_id IN ({1})'.
-                       format(table_name, ','.join(
-                           ["'"+x+"'" for x in chunks[0]['card_id']])),
-                       engine,
-                       index_col='card_id')
+logger.info("Logging to get line")
+df = pd.read_sql_query(
+    "SELECT * from {0} WHERE card_id IN ({1})".format(
+        table_name, ",".join(["'" + x + "'" for x in chunks[0]["card_id"]])
+    ),
+    engine,
+    index_col="card_id",
+)
 
 
 # + code_folding=[]
 # Iter chunks and save simple paths
 start = datetime.datetime.now()
-logger.info(linecache.getline(
-    __file__, inspect.getlineno(inspect.currentframe()) + 1))
+logger.info("Logging to get line")
 for i, chunk in enumerate(chunks):
 
-    logger.info(linecache.getline(
-        __file__, inspect.getlineno(inspect.currentframe()) + 1))
-    df = pd.read_sql_query('SELECT * from {0} WHERE card_id IN ({1})'.
-                           format(table_name, ','.join(
-                               ["'"+x+"'" for x in chunk['card_id']])),
-                           engine,
-                           )
+    logger.info(
+        linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1)
+    )
+    df = pd.read_sql_query(
+        "SELECT * from {0} WHERE card_id IN ({1})".format(
+            table_name, ",".join(["'" + x + "'" for x in chunk["card_id"]])
+        ),
+        engine,
+    )
 
-    logger.info(linecache.getline(
-        __file__, inspect.getlineno(inspect.currentframe()) + 1))
+    logger.info(
+        linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1)
+    )
     paths_series = df.progress_apply(
-        get_df_for_subgraphs_of_paths_from_card_to_entities, axis='columns')
+        get_df_for_subgraphs_of_paths_from_card_to_entities, axis="columns"
+    )
 
     # Drop these ids to append them again
-#     DROP_QUERY = ('DELETE FROM {0} WHERE card_id IN ({1})'.
-#                            format(table_name, ','.join(["'"+x+"'" for x in df.index]))
-#                  )
-#     print(engine.execute(DROP_QUERY))
+    #     DROP_QUERY = ('DELETE FROM {0} WHERE card_id IN ({1})'.
+    #                            format(table_name, ','.join(["'"+x+"'" for x in df.index]))
+    #                  )
+    #     print(engine.execute(DROP_QUERY))
 
     # Create columns if not exists
-#     NEW_QUERY = '''
-#         ALTER TABLE {0} ADD COLUMN {1} json;
-#             '''.format(table_name, 'list_of_subgraphs_of_paths_from_card_to_entities')
-#     try:
-#         print(engine.execute(NEW_QUERY))
-#     except sqlalchemy.exc.ProgrammingError:
-#         # Just ignore, it alredy exists
-#         pass
+    #     NEW_QUERY = '''
+    #         ALTER TABLE {0} ADD COLUMN {1} json;
+    #             '''.format(table_name, 'list_of_subgraphs_of_paths_from_card_to_entities')
+    #     try:
+    #         print(engine.execute(NEW_QUERY))
+    #     except sqlalchemy.exc.ProgrammingError:
+    #         # Just ignore, it alredy exists
+    #         pass
 
-    logger.info('Concatenating')
-    df = (pd.concat(paths_series.values, sort=False)
-          .reset_index(drop=True)
-          .set_index(['card_id', 'paragraph_order', 'pop_order', 'part_order', 'entity_node_entity'])
-          )
+    logger.info("Concatenating")
+    df = (
+        pd.concat(paths_series.values, sort=False)
+        .reset_index(drop=True)
+        .set_index(
+            [
+                "card_id",
+                "paragraph_order",
+                "pop_order",
+                "part_order",
+                "entity_node_entity",
+            ]
+        )
+    )
 
-    method = 'append' if i else 'replace'
-    df.to_sql(to_table_name, engine, if_exists=method,
-              dtype={'path_graph_json': sqlalchemy.types.JSON})
+    method = "append" if i else "replace"
+    df.to_sql(
+        to_table_name,
+        engine,
+        if_exists=method,
+        dtype={"path_graph_json": sqlalchemy.types.JSON},
+    )
 
-    logger.info('Chunk {0}/{1} ELAPSED: {2}'.format(i,
-                len(chunks), datetime.datetime.now()-start))
-    logger.info('Export finished')
+    logger.info(
+        "Chunk {0}/{1} ELAPSED: {2}".format(
+            i, len(chunks), datetime.datetime.now() - start
+        )
+    )
+    logger.info("Export finished")
     if not i % 15:
         clear_output()
 
@@ -469,4 +487,4 @@ for i, chunk in enumerate(chunks):
 # test
 # -
 
-logger.info(f'FINISHED: {__file__}')
+logger.info(f"FINISHED: {__file__}")
