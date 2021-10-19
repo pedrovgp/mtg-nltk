@@ -20,4 +20,5 @@ cards_links_list.pkl
 *.sqlite
 *.scrapy/
 *.env
-scraper/scraper/logs
+mtgnlp/scraper/scraper/logs
+data/*

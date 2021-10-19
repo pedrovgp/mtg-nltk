@@ -5,3 +5,6 @@
 import os
 
 DB_STR = os.getenv("DB_STR")
+DATA_DIR = "data"
+CARD_IMAGES_DIR = "card_images"
+GRAPHS_DIR = "card_images"
