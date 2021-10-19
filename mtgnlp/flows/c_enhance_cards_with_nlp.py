@@ -74,10 +74,10 @@ import inspect
 import linecache
 import os
 
-logPathFileName = "./logs/" + f"c_enhance_cards_with_nlp.log"
+logPathFileName = config.LOGS_DIR.joinpath(f"enhance_cards_with_nlp.log")
 
 # create logger'
-logger = logging.getLogger("c_enhance_cards_with_nlp")
+logger = logging.getLogger("enhance_cards_with_nlp")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")

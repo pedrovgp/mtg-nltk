@@ -39,17 +39,10 @@ import inspect
 import linecache
 import os
 
-try:
-    __file__
-except NameError:
-    # for running in ipython
-    fname = "03b-build_graph_of_selected_cards.py"
-    __file__ = os.path.abspath(os.path.realpath(fname))
-
-logPathFileName = "./logs/" + "03b.log"
+logPathFileName = config.LOGS_DIR.joinpath("build_graph_of_selected_cards.log")
 
 # create logger'
-logger = logging.getLogger("03b")
+logger = logging.getLogger("build_graph_of_selected_cards")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")
@@ -58,7 +51,9 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s")
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s"
+)
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger

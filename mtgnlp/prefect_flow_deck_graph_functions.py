@@ -33,14 +33,8 @@ import inspect
 import linecache
 import os
 
-try:
-    __file__
-except NameError:
-    # for running in ipython
-    fname = "prefect_flow_deck_graph_functions.py"
-    __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = "./logs/" + "prefect_flow_deck_graph_functions.log"
+logPathFileName = config.LOGS_DIR.joinpath("prefect_flow_deck_graph_functions.log")
 
 # create logger'
 logger = logging.getLogger("prefect_flow_deck_graph_functions")

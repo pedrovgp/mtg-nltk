@@ -21,14 +21,8 @@ import inspect
 import linecache
 import os
 
-try:
-    __file__
-except NameError:
-    # for running in ipython
-    fname = "prices_fetch_and_store"
-    __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = "./logs/" + "prices_fetch_and_store.log"
+logPathFileName = config.LOGS_DIR.joinpath("prices_fetch_and_store.log")
 
 # create logger'
 logger = logging.getLogger("prices_fetch_and_store")

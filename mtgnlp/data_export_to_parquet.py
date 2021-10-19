@@ -34,17 +34,11 @@ import inspect
 import linecache
 import os
 
-try:
-    __file__
-except NameError:
-    # for running in ipython
-    fname = "01.01-cards-ETL-no-NLP.py"
-    __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = "./logs/" + "01.01.log"
+logPathFileName = config.LOGS_DIR.joinpath("data_export_to_parquet.log")
 
 # create logger'
-logger = logging.getLogger("01.01")
+logger = logging.getLogger("data_export_to_parquet")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")

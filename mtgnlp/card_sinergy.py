@@ -60,17 +60,11 @@ import inspect
 import linecache
 import os
 
-try:
-    __file__
-except NameError:
-    # for running in ipython
-    fname = "04a_2_card_sinergy.py"
-    __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = "./logs/" + "04a.log"
+logPathFileName = config.LOGS_DIR.joinpath("card_sinergy.log")
 
 # create logger'
-logger = logging.getLogger("04a")
+logger = logging.getLogger("card_sinergy")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")

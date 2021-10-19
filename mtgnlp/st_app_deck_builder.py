@@ -49,18 +49,11 @@ generate a next generation of X decks. You can choose how many generations you w
 """
 )
 
-try:
-    if __file__:
-        pass
-except NameError:
-    # for running in ipython
-    fname = "04c_ga_for_deck_building.py"
-    __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = "./logs/" + "04c.log"
+logPathFileName = config.LOGS_DIR.joinpath("st_app_deck_builder.log")
 
 # create logger'
-logger = logging.getLogger("04c")
+logger = logging.getLogger("st_app_deck_builder")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")

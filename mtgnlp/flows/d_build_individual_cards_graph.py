@@ -55,10 +55,10 @@ import logging
 import inspect
 import linecache
 
-logPathFileName = "./logs/" + "d_build_individual_cards_graph.log"
+logPathFileName = config.LOGS_DIR.joinpath("build_individual_cards_graph.log")
 
 # create logger'
-logger = logging.getLogger("d_build_individual_cards_graph")
+logger = logging.getLogger("build_individual_cards_graph")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")

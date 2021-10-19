@@ -12,7 +12,7 @@ import logging
 import inspect
 import linecache
 
-logPathFileName = "./logs/" + "functions_build_graphs_of_cards.log"
+logPathFileName = config.LOGS_DIR.joinpath("functions_build_graphs_of_cards.log")
 
 # This is for terminal
 # from tqdm import tqdm

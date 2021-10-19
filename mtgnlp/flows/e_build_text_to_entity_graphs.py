@@ -54,7 +54,7 @@ import logging
 import inspect
 import linecache
 
-logPathFileName = "./logs/" + "e_build_text_to_entity_graphs.log"
+logPathFileName = config.LOGS_DIR.joinpath("build_text_to_entity_graphs.log")
 
 # create logger'
 logger = logging.getLogger("e_build_text_to_entity_graphs")

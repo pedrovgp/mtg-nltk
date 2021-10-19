@@ -32,7 +32,7 @@
 #
 # **DESIRED RESULT**:
 # Cards with a predicted POWER LEVEL
-
+from mtgnlp import config
 import sqlalchemy
 from sqlalchemy import create_engine
 from tqdm import tqdm
@@ -54,17 +54,11 @@ import inspect
 import linecache
 import os
 
-try:
-    __file__
-except NameError:
-    # for running in ipython
-    fname = "04a_2_card_sinergy.py.py"
-    __file__ = os.path.abspath(os.path.realpath(fname))
 
-logPathFileName = "./logs/" + "04a.log"
+logPathFileName = config.LOGS_DIR.joinpath("card_power.log")
 
 # create logger'
-logger = logging.getLogger("04a")
+logger = logging.getLogger("card_power")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")
