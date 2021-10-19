@@ -75,18 +75,18 @@ tqdm.pandas(desc="Progress")
 
 # %% Download AllPrintings.json if it does not exist
 # https://mtgjson.com/api/v5/AllPrintings.json
-logger.info("Download AllPrintings.json if it does not exist")
+allprintings_fname = f"./{os.getenv('ALL_PRINTINGS_FILENAME')}"
+logger.info(f"Download {allprintings_fname} if it does not exist")
 # allprintings_fname = "./AllPrintings20210615.json"
-allprintings_fname = "./AllPrintings20211017.json"
 if not os.path.isfile(allprintings_fname):
     raise Exception(
-        f"Sorry, did not find AllPrintings20210615.json in the projects root folder. "
-        "Please, download it here https://drive.google.com/file/d/1LnOrDqWODa9tSNfHxFh3qgVPMnOnMCHO/view?usp=sharing "
+        f"Sorry, did not find {allprintings_fname} in the projects root folder. "
+        "Please, download it here https://drive.google.com/file/d/1fj1zjkKamuz-dWv9rRucN7P7LVa2Wr2T/view?usp=sharing "
         "and put it in the same folder as this file."
     )
     import requests
 
-    url = "https://drive.google.com/file/d/1yMoKJ-ae7MstsXHleNjjZMIlQ_2ZmJhq/view?usp=sharing"
+    url = "https://drive.google.com/file/d/1fj1zjkKamuz-dWv9rRucN7P7LVa2Wr2T/view?usp=sharing"
     r = requests.get(url, allow_redirects=True)
     open(allprintings_fname, "wb").write(r.content)
 

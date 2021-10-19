@@ -77,7 +77,7 @@ import os
 logPathFileName = "./logs/" + f"c_enhance_cards_with_nlp.log"
 
 # create logger'
-logger = logging.getLogger('c_enhance_cards_with_nlp')
+logger = logging.getLogger("c_enhance_cards_with_nlp")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")
@@ -86,9 +86,7 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 # add the handlers to the logger
@@ -104,7 +102,8 @@ logger.addHandler(ch)
 tqdm.pandas(desc="Progress")
 
 # + hideCode=false
-sets = json.load(open("./AllSets.json", "rb"))
+allprintings_fname = f"./{os.getenv('ALL_PRINTINGS_FILENAME')}"
+sets = json.load(open(allprintings_fname, "rb"))["data"]
 # -
 
 logger.info("Loggin to get line number")
@@ -118,12 +117,9 @@ for k, sett in sets.items():
         card["set"] = k
     cards_all_sets.extend(sett["cards"])
 
-# + hideCode=false
-printings = json.load(open("./AllPrintings.json", "rb"))
-# -
 
 cards_all = []
-for k, sett in printings.items():
+for k, sett in sets.items():
     if (k in ["UGL", "UST", "UNH"]) or (
         len(k) > 3
     ):  # Ignore Unglued, Unstable and promotional things
