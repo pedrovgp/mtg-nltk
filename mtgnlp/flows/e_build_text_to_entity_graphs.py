@@ -238,17 +238,17 @@ def draw_graph(G, filename="test.png"):
 # + deletable=false editable=false run_control={"frozen": true}
 with engine.connect() as con:
     try:
-        con.execute("""DROP TABLE public.cards_graphs_as_json """)
+        con.execute(f"""DROP TABLE public."{config.CARDS_JSON_TNAME}" """)
     except Exception as e:
         pass
     con.execute(
-        """CREATE TABLE public.cards_graphs_as_json AS
-                   (SELECT * FROM public.cards_graphs_as_json_temp)"""
+        f"""CREATE TABLE public."{config.CARDS_JSON_TNAME}" AS
+                   (SELECT * FROM public."{config.CARDS_JSON_TNAME}_temp")"""
     )
 
 # +
-table_name = "cards_graphs_as_json"
-to_table_name = "cards_text_to_entity_simple_paths"
+table_name = config.CARDS_JSON_TNAME
+to_table_name = config.CARDS_TEXT_TO_ENTITY_SIMPLE_PATHS_TNAME
 chunk_size = 200
 
 all_ids = pd.read_sql_query(

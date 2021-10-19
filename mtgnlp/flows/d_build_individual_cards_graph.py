@@ -96,7 +96,7 @@ out_edges_table_name = "outedges"
 in_nodes_table_name = "innodes"
 in_edges_table_name = "inedges"
 
-cards_graphs_as_json_to_table = "cards_graphs_as_json_temp"
+cards_graphs_as_json_to_table = f"{config.CARDS_JSON_TNAME}_temp"
 
 # # Create dataframe of cards
 logger.info("Logging to get line")

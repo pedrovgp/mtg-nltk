@@ -329,7 +329,7 @@ for id_col in [
     cards_df[id_col] = cards_df["identifiers"].apply(lambda x: x.get(id_col, np.nan))
 cards_df = cards_df.drop(columns=["identifiers"])
 cards_df.set_index(["id", "name", "name_slug"]).to_sql(
-    "cards", engine, if_exists="replace"
+    config.CARDS_TNAME, engine, if_exists="replace"
 )
 
 # +

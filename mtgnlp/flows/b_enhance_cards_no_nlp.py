@@ -299,7 +299,9 @@ assert cards_df[cards_df["text_preworked"].str.contains("\(").fillna(False)][
 
 # Export to sql
 logger.info("cards_df to sql")
-cards_df.set_index(["id", "name"]).to_sql("cards", engine, if_exists="replace")
+cards_df.set_index(["id", "name"]).to_sql(
+    config.CARDS_TNAME, engine, if_exists="replace"
+)
 
 # +
 # Export keys tables

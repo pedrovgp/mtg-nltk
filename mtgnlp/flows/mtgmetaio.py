@@ -28,7 +28,7 @@ QUERY_TO_GET_MISSING_CARDS_NAMES = f"""
     , result as (
         SELECT "deck_url", "card_slug", "name_slug" as "canonical_skryfall_name_slug"
         FROM filtered
-        LEFT JOIN "cards"
+        LEFT JOIN "{config.CARDS_TNAME}"
         ON "card_slug"="name_slug"
     )
         SELECT DISTINCT card_slug
@@ -146,7 +146,7 @@ def check_if_all_cards_exist(
     , result as (
         SELECT "deck_url", "card_slug", "name_slug" as "canonical_skryfall_name_slug"
         FROM filtered
-        LEFT JOIN "cards"
+        LEFT JOIN "{config.CARDS_TNAME}"
         ON "card_slug"="name_slug"
     )
         SELECT *
@@ -202,10 +202,10 @@ def transf_landing_to_decks(
             NATURAL JOIN filtered_cards
         )
         SELECT "deck_url" as "deck_id", "main", "quantity", "card_slug",
-            "cards"."name" as "card_name", "deck_name"
+            "{config.CARDS_TNAME}"."name" as "card_name", "deck_name"
         FROM joint_mtgmeta
-        LEFT JOIN "cards"
-        ON joint_mtgmeta."card_slug"="cards"."name_slug"
+        LEFT JOIN "{config.CARDS_TNAME}"
+        ON joint_mtgmeta."card_slug"="{config.CARDS_TNAME}"."name_slug"
     """
 
     transformed_df = pd.read_sql_query(query_mtgmeta_decks_join_canonical_cards, engine)

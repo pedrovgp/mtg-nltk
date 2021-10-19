@@ -62,7 +62,7 @@ def build_graphs_of_cards(obj_tuple, method="append"):
     in_nodes_table_name = "innodes"
     in_edges_table_name = "inedges"
 
-    cards_graphs_as_json_to_table = "cards_graphs_as_json_temp"
+    cards_graphs_as_json_to_table = f"{config.CARDS_JSON_TNAME}_temp"
 
     # Load
     # out_nodes = pd.read_sql_table(out_nodes_table_name, engine)

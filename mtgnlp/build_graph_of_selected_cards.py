@@ -156,8 +156,8 @@ def draw_graph(G, filename="test.png"):
 
 # ### Get paths from cards_text to entities (simple paths from text -> entities)
 # +
-table_name = "cards_graphs_as_json"
-to_table_name = "cards_text_to_entity_simple_paths"
+table_name = config.CARDS_JSON_TNAME
+to_table_name = config.CARDS_TEXT_TO_ENTITY_SIMPLE_PATHS_TNAME
 
 CARD_LIMIT = 100
 logger.info(linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1))
