@@ -577,7 +577,7 @@ if False:
     H = save_decks_graphs_to_db(deck_ids=deckids, target=target)[0]
     G = load_decks_graphs_from_db(deck_ids=deckids, target=target)[0]
     assert nx.is_isomorphic(H, G)
-    draw_graph(G, f"pics/decks_graphs/{deckids[0]}_{target}.png")
+    draw_graph(G, config.PICS_DECKS_GRAPHS_DIR.join(f"{deckids[0]}_{target}.png"))
 
 
 # %% Draw two cards graph (it will draw left to right)
@@ -592,6 +592,6 @@ if False:
     outgoing = df.loc[df["name_slug"] == cards_slugs[0], "outgoing_graph"].values[0]
     incoming = df.loc[df["name_slug"] == cards_slugs[1], "incoming_graph"].values[0]
     G = nx.algorithms.operators.compose_all([outgoing, incoming])
-    draw_graph(G, f'pics/2_cards/{"-".join(cards_slugs)}.png')
+    draw_graph(G, config.PICS_DIR.join(f'2_cards/{"-".join(cards_slugs)}.png'))
 
 # %%

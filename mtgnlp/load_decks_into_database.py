@@ -53,7 +53,7 @@ engine.connect()
 
 decks_dir = "./decks/"
 
-decks_table_name = "decks"
+decks_table_name = config.DECKS_TNAME
 
 # + deletable=false editable=false run_control={"frozen": true}
 # # Drop table to reset it
