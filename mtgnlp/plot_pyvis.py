@@ -1,12 +1,12 @@
 # %% Importing
-
+from mtgnlp import config
 from pyvis.network import Network
 import networkx as nx
 from prefect_flow_deck_graph_functions import (
     save_decks_graphs_to_db,
     load_decks_graphs_from_db,
     draw_graph,
-    ENGINE
+    ENGINE,
 )
 
 # %% Options for visual layout
@@ -108,7 +108,7 @@ var options = {
 
 
 # %% Create pyvis Network
-nt = Network('800px', '700px')  # , notebook=True)
+nt = Network("800px", "700px")  # , notebook=True)
 # nt.set_options(get_options())
 # nt.show_buttons(filter_=['physics'])
 nt.show_buttons()
@@ -118,16 +118,21 @@ deck_ids = [
     # '00deck_frustrado_dano_as_is',
     # '00deck_passarinhos_as_is',
     # '00deck_alsios_combado',
-    'pv_white',
+    "pv_white",
 ]
 # ds = pd.read_sql('decks', ENGINE, columns=['deck_id'])
 # deck_ids = list(ds.deck_id.unique())
-target = 'entity'
+target = "entity"
 # save_decks_graphs_to_db(deck_ids=deck_ids, target=target)
 for dcid in deck_ids:
     G = load_decks_graphs_from_db(deck_ids=[dcid], target=target)[0]
-    G.remove_nodes_from([n for n, d in G.nodes(
-        data=True) if d.get('card_name', None) in ['Island', 'Plains', 'Forbidding Watchtower']])
+    G.remove_nodes_from(
+        [
+            n
+            for n, d in G.nodes(data=True)
+            if d.get("card_name", None) in ["Island", "Plains", "Forbidding Watchtower"]
+        ]
+    )
     # entity_nodes = [n for n, d in G.nodes(
     #     data=True) if d['type'] == 'entity']
     # nx.set_node_attributes(
@@ -138,10 +143,10 @@ for dcid in deck_ids:
     #     } for node_id in entity_nodes
     #     })
     nt.from_nx(G)
-    nt.show(f'./graphs/{dcid}-{target}.html')
+    nt.show(config.GRAPHS_DIR.joinpath(f"{dcid}-{target}.html"))
     # nx.set_edge_attributes(
     #     G,
     #     'pays_for',
     #     name='label'
     # )
-    draw_graph(G, f'./graphs/{dcid}-{target}.png')
+    draw_graph(G, config.GRAPHS_DIR.joinpath(f"{dcid}-{target}.png"))
