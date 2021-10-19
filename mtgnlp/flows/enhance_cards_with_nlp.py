@@ -43,7 +43,6 @@ from collections import OrderedDict
 from spacy.tokens import Span
 from spacy.matcher import PhraseMatcher, Matcher
 from spacy.tokens import Token
-from spacy import displacy
 import spacy
 from spacy.symbols import (
     ORTH,
@@ -70,9 +69,6 @@ from collections import defaultdict
 from IPython.display import clear_output
 
 import logging
-import inspect
-import linecache
-import os
 
 logPathFileName = config.LOGS_DIR.joinpath(f"enhance_cards_with_nlp.log")
 

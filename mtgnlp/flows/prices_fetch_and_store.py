@@ -8,18 +8,12 @@ import slugify
 import jsonfinder
 import datetime
 from lxml import html
-from sqlalchemy import inspect
 from sqlalchemy import create_engine
-import json
 import pandas as pd
-import numpy as np
 import requests
 import tqdm
 
 import logging
-import inspect
-import linecache
-import os
 
 
 logPathFileName = config.LOGS_DIR.joinpath("prices_fetch_and_store.log")

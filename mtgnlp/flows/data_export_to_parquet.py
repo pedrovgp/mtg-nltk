@@ -23,16 +23,10 @@
 from mtgnlp import config
 from sqlalchemy import inspect
 from sqlalchemy import create_engine
-import json
 import pandas as pd
-import numpy as np
-import re
-from collections import defaultdict
 
 import logging
 import inspect
-import linecache
-import os
 
 
 logPathFileName = config.LOGS_DIR.joinpath("data_export_to_parquet.log")

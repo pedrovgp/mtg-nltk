@@ -22,7 +22,6 @@
 
 # A card should appear once for each set it has been released on
 from mtgnlp import config
-import uuid
 from slugify import slugify
 import collections
 from sqlalchemy import create_engine
@@ -31,11 +30,8 @@ import json
 import pandas as pd
 import numpy as np
 import re
-from collections import defaultdict
 
 import logging
-import inspect
-import linecache
 import os
 
 logPathFileName = config.LOGS_DIR.joinpath("create_cards_database.log")

@@ -1,6 +1,5 @@
 from prefect import Task, Flow
 import logging
-import os
 
 from flows.mtgmetaio import flow_scrapy_crawl, get_flow_landing_to_decks
 

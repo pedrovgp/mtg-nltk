@@ -20,9 +20,7 @@
 # | a2fh34 | 0 | 1 | 1 | TYPE: Instant | activated | effect | intensifier | pobj | for | destroy |
 from mtgnlp import config
 import networkx as nx
-import datetime
 from networkx.readwrite import json_graph
-import sqlalchemy
 from sqlalchemy import create_engine
 from tqdm import tqdm
 import copy
@@ -31,13 +29,8 @@ import json
 import textwrap
 
 import pandas as pd
-import numpy
-import re
 
 import logging
-import inspect
-import linecache
-import os
 
 logPathFileName = config.LOGS_DIR.joinpath("build_graph_of_selected_cards.log")
 

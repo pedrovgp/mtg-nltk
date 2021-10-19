@@ -56,9 +56,6 @@ import json
 import datetime
 
 import logging
-import inspect
-import linecache
-import os
 
 
 logPathFileName = config.LOGS_DIR.joinpath("card_sinergy.log")

@@ -6,7 +6,6 @@ from mtgnlp.prefect_flow_deck_graph_functions import (
     save_decks_graphs_to_db,
     load_decks_graphs_from_db,
     draw_graph,
-    ENGINE,
 )
 
 # %% Options for visual layout

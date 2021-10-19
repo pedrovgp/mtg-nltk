@@ -51,8 +51,6 @@ from collections import defaultdict
 from IPython.display import clear_output
 
 import logging
-import inspect
-import linecache
 
 logPathFileName = config.LOGS_DIR.joinpath("build_text_to_entity_graphs.log")
 
@@ -397,9 +395,7 @@ start = datetime.datetime.now()
 logger.info("Logging to get line")
 for i, chunk in enumerate(chunks):
 
-    logger.info(
-        linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1)
-    )
+    logger.info("df = pd.read_sql_query(")
     df = pd.read_sql_query(
         "SELECT * from {0} WHERE card_id IN ({1})".format(
             table_name, ",".join(["'" + x + "'" for x in chunk["card_id"]])
@@ -407,9 +403,7 @@ for i, chunk in enumerate(chunks):
         engine,
     )
 
-    logger.info(
-        linecache.getline(__file__, inspect.getlineno(inspect.currentframe()) + 1)
-    )
+    logger.info("paths_series = df.progress_apply(")
     paths_series = df.progress_apply(
         get_df_for_subgraphs_of_paths_from_card_to_entities, axis="columns"
     )

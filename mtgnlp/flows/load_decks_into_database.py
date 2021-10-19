@@ -28,11 +28,9 @@ from bs4 import BeautifulSoup as BS
 import requests
 import collections
 from sqlalchemy import create_engine
-import json
 import pandas as pd
 import numpy
 import re
-from collections import defaultdict
 
 from slugify import slugify
 

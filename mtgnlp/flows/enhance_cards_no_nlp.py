@@ -36,7 +36,6 @@
 # incoming_nodes_df = nodes for cards and attribute entities
 # incoming_edges_df = edges from the nodes above
 from mtgnlp import config
-import uuid
 import collections
 from sqlalchemy import create_engine
 from tqdm import tqdm
@@ -44,12 +43,8 @@ import json
 import pandas as pd
 import numpy as numpy
 import re
-from collections import defaultdict
 
 import logging
-import inspect
-import linecache
-import os
 
 
 logPathFileName = config.LOGS_DIR.joinpath("enhance_cards_no_nlp.log")

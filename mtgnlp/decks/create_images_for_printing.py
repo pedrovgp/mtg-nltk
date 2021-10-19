@@ -14,7 +14,6 @@ from PIL import Image
 import os
 from pathlib import Path
 import numpy as np
-from slugify import slugify
 from sqlalchemy import create_engine
 from tqdm import tqdm
 import pandas as pd

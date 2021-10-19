@@ -25,7 +25,6 @@ from deap import tools
 from deap import creator
 from deap import base
 from deap import algorithms
-import sqlalchemy
 from sqlalchemy import create_engine
 from tqdm import tqdm
 import pandas as pd
@@ -37,9 +36,6 @@ import functools
 import streamlit as st
 
 import logging
-import inspect
-import linecache
-import os
 
 st.header("MTG: deck geration")
 st.write(

@@ -34,17 +34,13 @@
 #           }
 # -
 from mtgnlp import config
-from networkx.readwrite import json_graph
 import tqdm
 from multiprocessing import Pool
 from mtgnlp.helpers import functions
 import networkx as nx
-import datetime
-import json
 import hashlib
 from collections import OrderedDict
 import collections
-import sqlalchemy
 from sqlalchemy import create_engine
 from tqdm import tqdm
 import pandas as pd
@@ -52,8 +48,6 @@ import numpy
 from collections import defaultdict
 
 import logging
-import inspect
-import linecache
 
 logPathFileName = config.LOGS_DIR.joinpath("build_individual_cards_graph.log")
 
