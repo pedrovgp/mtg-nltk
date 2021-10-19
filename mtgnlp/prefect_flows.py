@@ -42,14 +42,6 @@ class LoadDecksIntoDatabase(Task):
         execfile("flows/load_decks_into_database.py")
 
 
-class EnhanceCardsDataWithoutNLP(Task):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def run(self):
-        execfile("flows/enhance_cards_no_nlp.py")
-
-
 class EnhanceCardsDataWithNLP(Task):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -89,7 +81,6 @@ flow_full_data_pipeline = Flow("Imperative-MTG-NLP-full-flow")
 # Task in sequence
 create_cards_database = CreateCardsDatabase()
 load_decks_into_database = LoadDecksIntoDatabase()
-enhance_cards_without_nlp = EnhanceCardsDataWithoutNLP()
 enhance_cards_with_nlp = EnhanceCardsDataWithNLP()
 build_individual_cards_graph = BuildIndividualCardsInOutGraph()
 build_text_to_entity_graphs = BuildTextToEntityGraphs()
@@ -111,11 +102,6 @@ flow_full_data_pipeline.set_dependencies(
 
 flow_full_data_pipeline.set_dependencies(
     task=enhance_cards_with_nlp,
-    upstream_tasks=[enhance_cards_without_nlp],
-)
-
-flow_full_data_pipeline.set_dependencies(
-    task=enhance_cards_without_nlp,
     upstream_tasks=[create_cards_database],
 )
 
