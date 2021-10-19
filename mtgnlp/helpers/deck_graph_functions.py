@@ -25,10 +25,10 @@ from typing import List
 import logging
 
 
-logPathFileName = config.LOGS_DIR.joinpath("prefect_flow_deck_graph_functions.log")
+logPathFileName = config.LOGS_DIR.joinpath("deck_graph_functions.log")
 
 # create logger'
-logger = logging.getLogger("prefect_flow_deck_graph_functions")
+logger = logging.getLogger("deck_graph_functions")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f"{logPathFileName}", mode="w")
